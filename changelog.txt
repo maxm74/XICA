@@ -1,0 +1,6 @@
+XICA CHANGE LOG
+======================
+2026/07/15 Initial Committ; 
+           Created Packages;
+           Added PaperSizes Unit.		   
+       
