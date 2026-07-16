@@ -21,6 +21,8 @@ unit XICA_PaperSizes;
 
 interface
 
+uses XICA_Types;
+
 resourcestring
   rsFullsize = 'Full size';
   rsCustomsize = 'Custom size';
@@ -38,68 +40,6 @@ type
   end;
   TPaperSizes=array of TPaperSize;
   PPaperSizes=^TPaperSizes;
-
-  TPaperType = (
-   ptA4,
-   ptLETTER,
-   ptUSLEGAL,
-   ptUSLEDGER,
-   ptUSSTATEMENT,
-   ptBUSINESSCARD,
-   ptISO_A0,
-   ptISO_A1,
-   ptISO_A2,
-   ptISO_A3,
-   ptISO_A5,
-   ptISO_A6,
-   ptISO_A7,
-   ptISO_A8,
-   ptISO_A9,
-   ptISO_A10,
-   ptISO_B0,
-   ptISO_B1,
-   ptISO_B2,
-   ptISO_B3,
-   ptISO_B4,
-   ptISO_B5,
-   ptISO_B6,
-   ptISO_B7,
-   ptISO_B8,
-   ptISO_B9,
-   ptISO_B10,
-   ptISO_C0,
-   ptISO_C1,
-   ptISO_C2,
-   ptISO_C3,
-   ptISO_C4,
-   ptISO_C5,
-   ptISO_C6,
-   ptISO_C7,
-   ptISO_C8,
-   ptISO_C9,
-   ptISO_C10,
-   ptJIS_B0,
-   ptJIS_B1,
-   ptJIS_B2,
-   ptJIS_B3,
-   ptJIS_B4,
-   ptJIS_B5,
-   ptJIS_B6,
-   ptJIS_B7,
-   ptJIS_B8,
-   ptJIS_B9,
-   ptJIS_B10,
-   ptJIS_B11,
-   ptJIS_B12,
-   ptJIS_2A,
-   ptJIS_4A,
-   ptDIN_2B,
-   ptDIN_4B,
-   ptAUTO,
-   ptCUSTOM, // Use a Range from MIN_SIZE to MAX_SIZE
-   ptMAX     // Use MAX_HORIZONTAL/VERTICAL_SIZE
-  );
-  TPaperTypeSet = set of TPaperType;
 
 const
   Unit_Str: array[Boolean] of String=('in', 'cm');
@@ -174,10 +114,12 @@ const
    );
 
 
-function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TPaperTypeSet;
-function CalculatePaperSize(AWidth, AHeight: Integer): TPaperType;
+//  Builds a set of Paper Types contained within the specified size
+function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TXICA_PaperTypes;
 
-function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TPaperType): String;
+function CalculatePaperSize(AWidth, AHeight: Integer): TXICA_PaperType;
+
+function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TXICA_PaperType): String;
 
 var
    Size_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
@@ -186,10 +128,10 @@ implementation
 
 uses SysUtils;
 
-function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TPaperTypeSet;
+function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TXICA_PaperTypes;
 var
    iSwap: Integer;
-   i: TPaperType;
+   i: TXICA_PaperType;
 
 begin
   Result:= [ptMAX];
@@ -210,9 +152,9 @@ begin
   end;
 end;
 
-function CalculatePaperSize(AWidth, AHeight: Integer): TPaperType;
+function CalculatePaperSize(AWidth, AHeight: Integer): TXICA_PaperType;
 var
-   i: TPaperType;
+   i: TXICA_PaperType;
 
 begin
   Result:= ptCUSTOM;
@@ -225,7 +167,7 @@ begin
   end;
 end;
 
-function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TPaperType): String;
+function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TXICA_PaperType): String;
 begin
   Case APaperType of
   ptMAX: Result:= rsFullsize;

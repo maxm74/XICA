@@ -8,7 +8,7 @@ unit XICA_pkg;
 interface
 
 uses
-  DelphiCompatibility, XICA_PaperSizes;
+  XICA_PaperSizes, XICA_Types, XICA_Classes, XICA, XICA_WIA;
 
 implementation
 

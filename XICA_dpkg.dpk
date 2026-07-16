@@ -33,6 +33,10 @@ requires
   rtl;
 
 contains
-  DelphiCompatibility in 'src\DelphiCompatibility.pas';
+  XICA_Classes in 'src\XICA_Classes.pas',
+  XICA_PaperSizes in 'src\XICA_PaperSizes.pas',
+  XICA_Types in 'src\XICA_Types.pas',
+  XICA in 'src\XICA.pas',
+  XICA_WIA in 'src\wia\XICA_WIA.pas';
 
 end.

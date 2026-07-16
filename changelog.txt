@@ -1,5 +1,7 @@
 XICA CHANGE LOG
 ======================
+2026/07/16 Created some basic types and empty base class structure
+
 2026/07/15 Initial Committ; 
            Created Packages;
            Added PaperSizes Unit.		   

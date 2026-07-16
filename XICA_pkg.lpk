@@ -9,8 +9,8 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <OtherUnitFiles Value="src"/>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(BuildMode) "/>
+        <OtherUnitFiles Value="src;src\wia"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(BuildMode)"/>
       </SearchPaths>
       <CodeGeneration>
         <Optimizations>
@@ -23,12 +23,24 @@
     <Version Release="1"/>
     <Files>
       <Item>
-        <Filename Value="src\DelphiCompatibility.pas"/>
-        <UnitName Value="DelphiCompatibility"/>
-      </Item>
-      <Item>
         <Filename Value="src\XICA_PaperSizes.pas"/>
         <UnitName Value="XICA_PaperSizes"/>
+      </Item>
+      <Item>
+        <Filename Value="src\XICA_Types.pas"/>
+        <UnitName Value="XICA_Types"/>
+      </Item>
+      <Item>
+        <Filename Value="src\XICA_Classes.pas"/>
+        <UnitName Value="XICA_Classes"/>
+      </Item>
+      <Item>
+        <Filename Value="src\XICA.pas"/>
+        <UnitName Value="XICA"/>
+      </Item>
+      <Item>
+        <Filename Value="src\wia\XICA_WIA.pas"/>
+        <UnitName Value="XICA_WIA"/>
       </Item>
     </Files>
     <i18n>
