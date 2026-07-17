@@ -17,6 +17,9 @@
 *****************************************************************************)
 unit XICA_Types;
 
+{$ifdef fpc}
+  {$mode delphi}
+{$endif}
 {$H+}
 
 interface
@@ -33,6 +36,58 @@ type
   TStringArray = array of String;
   TArrayGUID = array of TGUID;
 
+  TXICA_ItemType = (
+    xitFree,
+    xitImage,
+    xitFile,
+    xitFolder,
+    xitRoot,
+    xitAnalyze,
+    xitAudio,
+    xitDevice,
+    xitDeleted,
+    xitDisconnected,
+    xitHPanorama,
+    xitVPanorama,
+    xitBurst,
+    xitStorage,
+    xitTransfer,
+    xitGenerated,
+    xitHasAttachments,
+    xitVideo,
+    xitTwainCompatibility,
+    xitRemoved,
+    xitDocument,
+    xitProgrammableDataSource
+  );
+  TXICA_ItemTypes = set of TXICA_ItemType;
+
+  TXICA_ItemCategory = (
+    xicNULL,
+    xicFINISHED_FILE,
+    xicFLATBED,
+    xicFEEDER,
+    xicFILM,
+    xicROOT,
+    xicFOLDER,
+    xicFEEDER_FRONT,
+    xicFEEDER_BACK,
+    xicAUTO,
+    xicIMPRINTER,
+    xicENDORSER,
+    xicBARCODE_READER,
+    xicPATCH_CODE_READER,
+    xicMICR_READER
+  );
+
+  TXICA_Item = class(TObject)
+    Name: String;
+    ItemType: TXICA_ItemTypes;
+    ItemCategory: TXICA_ItemCategory;
+  end;
+//  PXICA_Item = ^TXICA_Item;
+  TArrayXICA_Item = array of TXICA_Item;
+
   TXICA_DeviceType = (
     devTypeUnknown, devTypeScanner, devTypeDigitalCamera
   );
@@ -42,6 +97,14 @@ type
   );
   TXICA_PropertyFlags = set of TXICA_PropertyFlag;
 
+const
+  //if Property contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
+  prop_RANGE_MIN     = 0;
+  prop_RANGE_DEFAULT = 1;
+  prop_RANGE_MAX     = 2;
+  prop_RANGE_STEP    = 3;
+
+type
   TXICA_Rotation = (
     xrPortrait, xrLandscape,
     xrRot180, xrRot270
@@ -218,6 +281,13 @@ type
   TArrayXICA_ParamsCapabilities = array of TXICA_ParamsCapabilities;
 
 implementation
+
+(*
+class operator TXICA_Item.Equal(a, b: TXICA_Item): Boolean;
+begin
+  Result:= (a.ItemCategory = b.ItemCategory) and (a.ItemType = b.ItemType); // and (a.Name = b.Name);
+end;
+*)
 
 end.
 

@@ -42,6 +42,14 @@
         <Filename Value="src\wia\XICA_WIA.pas"/>
         <UnitName Value="XICA_WIA"/>
       </Item>
+      <Item>
+        <Filename Value="src\DelphiCompatibility.pas"/>
+        <UnitName Value="DelphiCompatibility"/>
+      </Item>
+      <Item>
+        <Filename Value="src\MM_OpenArrayList.pas"/>
+        <UnitName Value="MM_OpenArrayList"/>
+      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>

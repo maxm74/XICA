@@ -37,6 +37,8 @@ contains
   XICA_PaperSizes in 'src\XICA_PaperSizes.pas',
   XICA_Types in 'src\XICA_Types.pas',
   XICA in 'src\XICA.pas',
-  XICA_WIA in 'src\wia\XICA_WIA.pas';
+  XICA_WIA in 'src\wia\XICA_WIA.pas',
+  MM_OpenArrayList in 'src\MM_OpenArrayList.pas',
+  DelphiCompatibility in 'src\DelphiCompatibility.pas';
 
 end.
