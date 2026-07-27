@@ -42,7 +42,7 @@ type
   (*TOnDeviceTransfer = function (AWiaManager: TWIAManager; AWiaDevice: TWIADevice;
                          lFlags: LONG; pWiaTransferParams: PWiaTransferParams): Boolean of object;*)
 
-  TXICA_WIAManager = class(TXICA_Manager)
+  TXICA_WIAManager = class(TXICA_DeviceManager)
   protected
     //rOnAfterDeviceTransfer,
     //rOnBeforeDeviceTransfer: TOnDeviceTransfer;

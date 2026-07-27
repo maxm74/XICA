@@ -1,6 +1,12 @@
 XICA CHANGE LOG
 ======================
 
+2026/07/27 Changed some Class Name;
+           Changed Paper Sizes types to Single;
+		   Writed First version of Paper Sizes methods;
+		   Added Device Params virtual abstract methods;
+		   Added XICA_UI_Common unit.
+
 2026/07/17 Added ItemType and changed Device to List of it; 
            Added some abstract methods to Device;
            Added implicit unit DelphiCompatibility, MM_OpenArrayList to package;		   

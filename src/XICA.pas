@@ -31,7 +31,7 @@ uses Classes, SysUtils,
      XICA_Classes;
 
 type
-  TXICA_LibraryManager = class(TOpenArrayList<TXICA_Manager, TKeyString>)
+  TXICA_Manager = class(TOpenArrayList<TXICA_DeviceManager, TKeyString>)
   protected
     rEnumAll: Boolean;
     lres: HResult;
@@ -42,7 +42,7 @@ type
 
 
 var
-   XICA_LibraryManager: TXICA_LibraryManager = nil;
+   XICA_Manager: TXICA_Manager = nil;
 
 implementation
 

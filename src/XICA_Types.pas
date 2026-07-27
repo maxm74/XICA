@@ -231,7 +231,7 @@ type
 
     //Used only if PaperType=ptCUSTOM
     PaperW,
-    PaperH: Integer;
+    PaperH: Single;
 
     Rotation: TXICA_Rotation;
     HAlign: TXICA_AlignHorizontal;
@@ -247,7 +247,7 @@ type
 
   TXICA_ParamsCapabilities = packed record
     PaperSizeMaxWidth,
-    PaperSizeMaxHeight: Integer;
+    PaperSizeMaxHeight: Single;
     PaperTypeSet: TXICA_PaperTypes;
     PaperTypeCurrent,
     PaperTypeDefault: TXICA_PaperType;

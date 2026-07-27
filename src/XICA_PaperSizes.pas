@@ -115,9 +115,9 @@ const
 
 
 //  Builds a set of Paper Types contained within the specified size
-function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TXICA_PaperTypes;
+function CalculatePaperSizeSet(Max_Width, Max_Height: Single): TXICA_PaperTypes;
 
-function CalculatePaperSize(AWidth, AHeight: Integer): TXICA_PaperType;
+function CalculatePaperSize(AWidth, AHeight: Single): TXICA_PaperType;
 
 function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TXICA_PaperType): String;
 
@@ -128,9 +128,9 @@ implementation
 
 uses SysUtils;
 
-function CalculatePaperSizeSet(Max_Width, Max_Height: Integer): TXICA_PaperTypes;
+function CalculatePaperSizeSet(Max_Width, Max_Height: Single): TXICA_PaperTypes;
 var
-   iSwap: Integer;
+   iSwap: Single;
    i: TXICA_PaperType;
 
 begin
@@ -152,7 +152,7 @@ begin
   end;
 end;
 
-function CalculatePaperSize(AWidth, AHeight: Integer): TXICA_PaperType;
+function CalculatePaperSize(AWidth, AHeight: Single): TXICA_PaperType;
 var
    i: TXICA_PaperType;
 
