@@ -1,0 +1,15 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: xica_classes.rsautotype
+msgid "Auto type"
+msgstr ""
+
+#: xica_classes.rslandscape
+msgid "Landscape"
+msgstr ""
+
+#: xica_classes.rsportrait
+msgid "Portrait"
+msgstr ""
+

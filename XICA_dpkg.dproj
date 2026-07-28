@@ -155,7 +155,6 @@
         <DCCReference Include="src\wia\XICA_WIA.pas"/>
         <DCCReference Include="src\MM_OpenArrayList.pas"/>
         <DCCReference Include="src\DelphiCompatibility.pas"/>
-        <DCCReference Include="src\XICA_UI_Common.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

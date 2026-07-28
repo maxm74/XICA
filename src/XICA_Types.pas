@@ -280,6 +280,10 @@ type
   end;
   TArrayXICA_ParamsCapabilities = array of TXICA_ParamsCapabilities;
 
+var
+  XICA_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
+
+
 implementation
 
 (*

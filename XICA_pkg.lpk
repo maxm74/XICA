@@ -50,10 +50,6 @@
         <Filename Value="src\MM_OpenArrayList.pas"/>
         <UnitName Value="MM_OpenArrayList"/>
       </Item>
-      <Item>
-        <Filename Value="src\XICA_UI_Common.pas"/>
-        <UnitName Value="XICA_UI_Common"/>
-      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>

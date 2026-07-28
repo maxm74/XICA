@@ -1,14 +1,14 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
-#: xica_ui_common.rsautotype
+#: xica_classes.rsautotype
 msgid "Auto type"
 msgstr "Tipo Automatico"
 
-#: xica_ui_common.rslandscape
+#: xica_classes.rslandscape
 msgid "Landscape"
 msgstr "Orizzontale"
 
-#: xica_ui_common.rsportrait
+#: xica_classes.rsportrait
 msgid "Portrait"
 msgstr "Verticale"

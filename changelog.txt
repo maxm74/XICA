@@ -1,6 +1,10 @@
 XICA CHANGE LOG
 ======================
 
+2026/07/28 Deleted UI_Common Unit;
+		   Added List manage methods to Device classes;
+           Added UI DialogFunc methods to Device classes (Test with strange delphi compiler @ use);
+
 2026/07/27 Changed some Class Name;
            Changed Paper Sizes types to Single;
 		   Writed First version of Paper Sizes methods;

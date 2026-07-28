@@ -26,18 +26,31 @@ unit XICA_Classes;
 interface
 
 uses Classes, SysUtils,
-     {$ifdef fpc}testutils,{$else}DelphiCompatibility,{$endif}
+     {$ifdef fpc}testutils,{$else}DelphiCompatibility, Types,{$endif}
      MM_OpenArrayList,
      XICA_Types;
 
+resourcestring
+  rsLandscape = 'Landscape';
+  rsPortrait = 'Portrait';
+  rsAutotype = 'Auto type';
+
 type
   TXICA_DeviceManager = class;
+  TXICA_Device = class;
 
   { TXICA_Device }
 
   // UI Settings of Source Device
   TInitialItemValues = (initDefault, initParams, initCurrent);
   TInitDefaultValuesEvent = procedure (var ACap: TXICA_ParamsCapabilities) of object;
+
+  TXICA_SettingsDialogFunc = function (ADevice: TXICA_Device;
+                                       var ASelectedItemIndex: Integer;
+                                       { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
+                                       AInitItemValues: TInitialItemValues;
+                                       var AParams: TArrayXICA_Params;
+                                       AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
 
   TXICA_Device = class(TOpenArrayList<TXICA_Item, TKeyString>)
   protected
@@ -72,8 +85,11 @@ type
     rDownload_Ext,
     rDownload_FileName: String;
 
+    function FreeElement(var aData: TXICA_Item): Boolean; override;
+
     //Enumerate the avaliable items
-    function EnumerateItems: Boolean; virtual; abstract;
+    function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; virtual; abstract;
+    function EnumerateItems(PreserveSelected: Boolean): Boolean;
 
     //Get Paper Width, Height form the Device (in Inches)
     function _GetPaperSize(out AWidth, AHeight: Single): Boolean; overload; virtual; abstract;
@@ -82,9 +98,16 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual; abstract;
 
+    class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual; abstract;
+
   public
     constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
     destructor Destroy; override;
+
+    function GetCount: DWord; override; stdcall;
+
+    //Refresh the list of devices
+    procedure RefreshItemList(PreserveSelected: Boolean=True);
 
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
@@ -239,24 +262,81 @@ type
 
   { TXICA_DeviceManager }
 
-  (*TOnDeviceTransfer = function (AWiaManager: TWIAManager; AWiaDevice: TWIADevice;
-                         lFlags: LONG; pWiaTransferParams: PWiaTransferParams): Boolean of object;*)
+  TXICA_SelectDialogFunc = function (ADeviceManager: TXICA_DeviceManager): Integer;
+
+  TXICA_OnDeviceTransfer = function (ADeviceManager: TXICA_DeviceManager; AWiaDevice: TXICA_Device
+                                     (*lFlags: LONG; pWiaTransferParams: PWiaTransferParams*)): Boolean of object;
 
   TXICA_DeviceManager = class(TOpenArrayList<TXICA_Device, TKeyString>)
   protected
     rEnumAll: Boolean;
     lres: HResult;
     HasEnumerated: Boolean;
-    //rOnAfterDeviceTransfer,
-    //rOnBeforeDeviceTransfer: TOnDeviceTransfer;
+    rOnAfterDeviceTransfer,
+    rOnBeforeDeviceTransfer: TXICA_OnDeviceTransfer;
+
+    function FreeElement(var aData: TXICA_Device): Boolean; override;
+
+    //Enumerate the avaliable devices
+    function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; virtual; abstract;
+    function EnumerateDevices(PreserveSelected: Boolean): Boolean;
+
+    class function SelectDialogFunc: TXICA_SelectDialogFunc; virtual; abstract;
+
+  public
+    constructor Create(AEnumAll: Boolean = True);
+    destructor Destroy; override;
+
+    //Clears the list of devices
+    function Clear: Boolean; override;
+
+    function GetCount: DWord; override; stdcall;
+
+    //Refresh the list of devices
+    procedure RefreshDeviceList(PreserveSelected: Boolean=True);
+
+    //Display a dialog to let the user choose a Device and returns it's index
+    function SelectDeviceDialog: Integer; virtual;
   end;
 
 
 implementation
 
-uses XICA_PaperSizes, XICA_UI_Common;
+uses XICA_PaperSizes;
 
 { TXICA_Device }
+
+function TXICA_Device.FreeElement(var aData: TXICA_Item): Boolean;
+begin
+  try
+     FreeAndNil(aData);
+     Result:= True;
+  except
+    Result:= False;
+  end;
+end;
+
+function TXICA_Device.EnumerateItems(PreserveSelected: Boolean): Boolean;
+var
+   lastSelected: TXICA_Item;
+
+begin
+  Result:= False;
+
+  if PreserveSelected
+  then lastSelected:= Selected
+  else lastSelected:= nil;
+
+  Clear(PreserveSelected);
+
+  try
+     Result:= _EnumerateItems(PreserveSelected, lastSelected);
+
+  except
+    Clear(PreserveSelected);
+    Result:= False;
+  end;
+end;
 
 constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
 begin
@@ -287,6 +367,20 @@ end;
 destructor TXICA_Device.Destroy;
 begin
   inherited Destroy;
+end;
+
+function TXICA_Device.GetCount: DWord; stdcall;
+begin
+  //Enumerate Items if needed
+  if not(HasEnumerated)
+  then HasEnumerated:= EnumerateItems(False);
+
+  Result:=inherited GetCount;
+end;
+
+procedure TXICA_Device.RefreshItemList(PreserveSelected: Boolean);
+begin
+
 end;
 
 function TXICA_Device.GetPaperSize(out AWidth, AHeight: Single): Boolean;
@@ -612,12 +706,97 @@ end;
 function TXICA_Device.SettingsDeviceDialog(var ASelectedItemIndex: Integer;
                                            AInitItemValues: TInitialItemValues; var AParams: TArrayXICA_Params;
                                            AOnInitDefaultValues: TInitDefaultValuesEvent): Boolean;
+var
+   fSettingsDialogFunc: TXICA_SettingsDialogFunc;
+
 begin
   Result:= False;
   try
-    if Assigned(XICA_SettingsDialogFunc)
-    then Result:= XICA_SettingsDialogFunc(Self, ASelectedItemIndex,
-                                          AInitItemValues, AParams, AOnInitDefaultValues);
+     fSettingsDialogFunc:= @TXICA_Device.SettingsDialogFunc;
+
+     if Assigned(fSettingsDialogFunc)
+     then Result:= fSettingsDialogFunc(Self, ASelectedItemIndex,
+                                       AInitItemValues, AParams, AOnInitDefaultValues);
+
+  except
+  end;
+end;
+
+{ TXICA_DeviceManager }
+
+function TXICA_DeviceManager.FreeElement(var aData: TXICA_Device): Boolean;
+begin
+  try
+     FreeAndNil(aData);
+     Result:= True;
+  except
+    Result:= False;
+  end;
+end;
+
+function TXICA_DeviceManager.EnumerateDevices(PreserveSelected: Boolean): Boolean;
+var
+   lastSelected: TXICA_Device;
+
+begin
+  Result :=False;
+
+  if PreserveSelected
+  then lastSelected:= Selected
+  else lastSelected:= nil;
+
+  Clear(PreserveSelected);
+
+  try
+     Result:= _EnumerateDevices(PreserveSelected, lastSelected);
+
+  except
+    Clear(PreserveSelected);
+    Result :=False;
+  end;
+end;
+
+constructor TXICA_DeviceManager.Create(AEnumAll: Boolean);
+begin
+  inherited Create;
+
+  HasEnumerated:= False;
+  rEnumAll:= AEnumAll;
+end;
+
+destructor TXICA_DeviceManager.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TXICA_DeviceManager.Clear: Boolean;
+begin
+  Result:=inherited Clear;
+end;
+
+function TXICA_DeviceManager.GetCount: DWord; stdcall;
+begin
+  //Enumerate devices if needed
+  if not(HasEnumerated)
+  then HasEnumerated:= EnumerateDevices(False);
+
+  Result:=inherited GetCount;
+end;
+
+procedure TXICA_DeviceManager.RefreshDeviceList(PreserveSelected: Boolean);
+begin
+  HasEnumerated:= EnumerateDevices(PreserveSelected);
+end;
+
+function TXICA_DeviceManager.SelectDeviceDialog: Integer;
+var
+   fSelectDialogFunc: TXICA_SelectDialogFunc;
+
+begin
+  Result:= -1;
+  try
+     fSelectDialogFunc:= @TXICA_DeviceManager.SelectDialogFunc;
+     if Assigned(fSelectDialogFunc) then Result:= fSelectDialogFunc(Self);
 
   except
   end;
