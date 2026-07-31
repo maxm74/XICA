@@ -52,7 +52,12 @@ type
                                        var AParams: TArrayXICA_Params;
                                        AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
 
-  TXICA_Device = class(TOpenArrayList<TXICA_Item, TKeyString>)
+  TXICA_Device = class(
+                       TOpenArrayList<TXICA_Item, TKeyString>
+                       { #todo -oMaxM : Create a Unit with Bridge to other languages }
+                       //,IOpenArrayListR<TXICA_Item, TKeyString>
+                       //,IOpenArrayListW<TXICA_Item, TKeyString>
+                       )
   protected
     rOwner: TXICA_DeviceManager;
     rIndex: Integer;
@@ -100,14 +105,16 @@ type
 
     class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual; abstract;
 
+    function GetType_Str: String; virtual;
+
   public
     constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
     destructor Destroy; override;
 
-    function GetCount: DWord; override; stdcall;
+    function GetCount: DWord; override;
 
-    //Refresh the list of devices
-    procedure RefreshItemList(PreserveSelected: Boolean=True);
+    //Refresh the item list
+    procedure Refresh(PreserveSelected: Boolean=True);
 
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
@@ -257,7 +264,12 @@ type
     property Manufacturer: String read rManufacturer;
     property Name: String read rName;
     property Type_: TXICA_DeviceType read rType;
+    property Type_Str: String read GetType_Str;
     property SubType: Word read rSubType;
+
+    //Version and SubVersion of Device
+    property Version: Integer read rVersion write rVersion;
+    property VersionSub: Integer read rVersionSub write rVersionSub;
   end;
 
   { TXICA_DeviceManager }
@@ -269,6 +281,8 @@ type
 
   TXICA_DeviceManager = class(TOpenArrayList<TXICA_Device, TKeyString>)
   protected
+    rVersion,
+    rVersionSub: Integer;
     rEnumAll: Boolean;
     lres: HResult;
     HasEnumerated: Boolean;
@@ -290,13 +304,36 @@ type
     //Clears the list of devices
     function Clear: Boolean; override;
 
-    function GetCount: DWord; override; stdcall;
+    function GetCount: DWord; override;
 
     //Refresh the list of devices
-    procedure RefreshDeviceList(PreserveSelected: Boolean=True);
+    procedure Refresh(PreserveSelected: Boolean=True);
 
     //Display a dialog to let the user choose a Device and returns it's index
     function SelectDeviceDialog: Integer; virtual;
+
+    //Finds a matching Device index
+    //  to Find Device by ID use FindByKey(ID)
+    //  to Find Device by it's class use Find(Value: TXICA_Device)
+    //  Find Device by it's Name (set Manufacturer to '' to Find only by Name)
+    function Find(AName, AManufacturer: String): Integer; overload; virtual;
+
+    //Find a Device by it's ID and Select the given Item
+    procedure SelectDeviceItem(ADeviceID, ADeviceItem: String; out ADevice: TXICA_Device; var ADeviceItemIndex: Integer);
+
+    //Name of the Library
+    class function Name: String; virtual; abstract;
+
+    //Version and SubVersion of Library
+    property Version: Integer read rVersion write rVersion;
+    property VersionSub: Integer read rVersionSub write rVersionSub;
+
+    //Kind of Enum, if True Enum even disconnected Devices
+    property EnumAll: Boolean read rEnumAll write rEnumAll;
+
+    //Events
+    property OnBeforeDeviceTransfer: TXICA_OnDeviceTransfer read rOnBeforeDeviceTransfer write rOnBeforeDeviceTransfer;
+    property OnAfterDeviceTransfer: TXICA_OnDeviceTransfer read rOnAfterDeviceTransfer write rOnAfterDeviceTransfer;
   end;
 
 
@@ -318,7 +355,7 @@ end;
 
 function TXICA_Device.EnumerateItems(PreserveSelected: Boolean): Boolean;
 var
-   lastSelected: TXICA_Item;
+   lastSelected: ^TXICA_Item;
 
 begin
   Result:= False;
@@ -330,12 +367,22 @@ begin
   Clear(PreserveSelected);
 
   try
-     Result:= _EnumerateItems(PreserveSelected, lastSelected);
+     //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
+     if (lastSelected = nil)
+     then Result:= _EnumerateItems(PreserveSelected, nil)
+     else Result:= _EnumerateItems(PreserveSelected, lastSelected^);
+
+     //Result:= _EnumerateItems(PreserveSelected, lastSelected);
 
   except
     Clear(PreserveSelected);
     Result:= False;
   end;
+end;
+
+function TXICA_Device.GetType_Str: String;
+begin
+  Result:= XICA_DeviceType(rType);
 end;
 
 constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
@@ -366,10 +413,12 @@ end;
 
 destructor TXICA_Device.Destroy;
 begin
+  if (StreamAdapter <> nil) then StreamAdapter:= nil;
+
   inherited Destroy;
 end;
 
-function TXICA_Device.GetCount: DWord; stdcall;
+function TXICA_Device.GetCount: DWord;
 begin
   //Enumerate Items if needed
   if not(HasEnumerated)
@@ -378,9 +427,9 @@ begin
   Result:=inherited GetCount;
 end;
 
-procedure TXICA_Device.RefreshItemList(PreserveSelected: Boolean);
+procedure TXICA_Device.Refresh(PreserveSelected: Boolean);
 begin
-
+  HasEnumerated:= EnumerateItems(PreserveSelected);
 end;
 
 function TXICA_Device.GetPaperSize(out AWidth, AHeight: Single): Boolean;
@@ -624,7 +673,7 @@ begin
 
   with Value do
   begin
-    if (Selected = nil) or (Selected.ItemCategory <> xicAUTO) then
+    if (Selected = nil) or (Selected^.Category <> xicAUTO) then
     begin
       Result:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
       //if not(Result) then raise Exception.Create('GetPaperSizeMax');
@@ -669,7 +718,7 @@ begin
 
   with AParams do
   begin
-    if (Selected = nil) or (Selected.ItemCategory <> xicAUTO) then
+    if (Selected = nil) or (Selected.Category <> xicAUTO) then
     begin
       Result:= SetResolution(Resolution, Resolution);
       //if not(Result) then raise Exception.Create('SetResolution');
@@ -736,7 +785,7 @@ end;
 
 function TXICA_DeviceManager.EnumerateDevices(PreserveSelected: Boolean): Boolean;
 var
-   lastSelected: TXICA_Device;
+   lastSelected: ^TXICA_Device;
 
 begin
   Result :=False;
@@ -748,7 +797,10 @@ begin
   Clear(PreserveSelected);
 
   try
-     Result:= _EnumerateDevices(PreserveSelected, lastSelected);
+     //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
+     if (lastSelected = nil)
+     then Result:= _EnumerateDevices(PreserveSelected, nil)
+     else Result:= _EnumerateDevices(PreserveSelected, lastSelected^);
 
   except
     Clear(PreserveSelected);
@@ -774,7 +826,7 @@ begin
   Result:=inherited Clear;
 end;
 
-function TXICA_DeviceManager.GetCount: DWord; stdcall;
+function TXICA_DeviceManager.GetCount: DWord;
 begin
   //Enumerate devices if needed
   if not(HasEnumerated)
@@ -783,7 +835,7 @@ begin
   Result:=inherited GetCount;
 end;
 
-procedure TXICA_DeviceManager.RefreshDeviceList(PreserveSelected: Boolean);
+procedure TXICA_DeviceManager.Refresh(PreserveSelected: Boolean);
 begin
   HasEnumerated:= EnumerateDevices(PreserveSelected);
 end;
@@ -799,6 +851,45 @@ begin
      if Assigned(fSelectDialogFunc) then Result:= fSelectDialogFunc(Self);
 
   except
+  end;
+end;
+
+function TXICA_DeviceManager.Find(AName, AManufacturer: String): Integer;
+var
+   i: Integer;
+
+begin
+  Result:= -1;
+  for i:=0 to Length(rList)-1 do
+  begin
+    { #todo -oMaxM : if there is more identical device? }
+    if (rList[i].Data <> nil) and
+       (rList[i].Data.Name = AName) and
+       ((AManufacturer <> '') and (rList[i].Data.Manufacturer = AManufacturer))
+    then begin Result:=i; break; end;
+  end;
+end;
+
+procedure TXICA_DeviceManager.SelectDeviceItem(ADeviceID, ADeviceItem: String;
+                                               out ADevice: TXICA_Device; var ADeviceItemIndex: Integer);
+var
+   iDevice: Integer;
+
+begin
+  ADevice:= nil;
+  ADeviceItemIndex:= -1;
+
+  try
+     iDevice:= FindByKey(ADeviceID);
+     if (iDevice > -1) and (rList[iDevice].Data <> nil) then
+     begin
+       ADevice:= rList[iDevice].Data;
+       ADevice.Select(ADeviceItem);
+     end;
+
+  except
+    ADevice:= nil;
+    ADeviceItemIndex:= -1;
   end;
 end;
 

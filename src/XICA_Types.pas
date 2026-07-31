@@ -80,20 +80,28 @@ type
     xicMICR_READER
   );
 
-  TXICA_Item = class(TObject)
+  TXICA_Item = class(TNoRefCountObject)
     Name: String;
-    ItemType: TXICA_ItemTypes;
-    ItemCategory: TXICA_ItemCategory;
+    Type_: TXICA_ItemTypes;
+    Category: TXICA_ItemCategory;
   end;
 //  PXICA_Item = ^TXICA_Item;
   TArrayXICA_Item = array of TXICA_Item;
 
   TXICA_DeviceType = (
-    devTypeUnknown, devTypeScanner, devTypeDigitalCamera
+    devTypeUnknown = 0,
+    devTypeScanner,
+    devTypeDigitalCamera
   );
 
+const
+  XICA_DeviceTypeDescr : array [TXICA_DeviceType] of String = (
+    'Unknown', 'Scanner', 'Digital Camera'
+  );
+
+type
   TXICA_PropertyFlag = (
-    prop_READ,  propWRITE, prop_REQUIRED, prop_RANGE, prop_LIST
+    prop_READ,  prop_WRITE, prop_REQUIRED, prop_RANGE, prop_LIST
   );
   TXICA_PropertyFlags = set of TXICA_PropertyFlag;
 
@@ -128,6 +136,7 @@ type
   TXICA_ImageFormat = (
     xifUNDEFINED,
     xifRAWRGB,
+    xifMEMORYBMP,
     xifBMP,
     xifEMF,
     xifWMF,
@@ -284,7 +293,19 @@ var
   XICA_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
 
 
+function XICA_DeviceType(const ADeviceType: TXICA_DeviceType): String;
+
+
 implementation
+
+uses SysUtils;
+
+function XICA_DeviceType(const ADeviceType: TXICA_DeviceType): String;
+begin
+  if (ADeviceType in [Low(TXICA_DeviceType)..High(TXICA_DeviceType)])
+  then Result:= XICA_DeviceTypeDescr[ADeviceType]
+  else Result:= 'Undefined ('+IntToStr(Integer(ADeviceType))+')';
+end;
 
 (*
 class operator TXICA_Item.Equal(a, b: TXICA_Item): Boolean;
@@ -292,6 +313,46 @@ begin
   Result:= (a.ItemCategory = b.ItemCategory) and (a.ItemType = b.ItemType); // and (a.Name = b.Name);
 end;
 *)
+
+function XICA_CopyCurrentValues(const Cap: TXICA_ParamsCapabilities;
+                                aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+begin
+  FillChar(Result, Sizeof(Result), 0);
+  with Result do
+  begin
+    PaperType:= Cap.PaperTypeCurrent;
+    Resolution:= Cap.ResolutionCurrent;
+    Contrast:= Cap.ContrastCurrent;
+    Brightness:= Cap.BrightnessCurrent;
+    DocHandling:= Cap.DocHandlingCurrent;
+    //BitDepth:= Cap.BitDepthCurrent;
+    DataType:= Cap.DataTypeCurrent;
+    HAlign:= aHAlign;
+    VAlign:= aVAlign;
+  end;
+end;
+
+function XICA_CopyDefaultValues(const Cap: TXICA_ParamsCapabilities;
+                                aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+begin
+  FillChar(Result, Sizeof(Result), 0);
+  with Result do
+  begin
+    PaperType:= Cap.PaperTypeDefault;
+    Resolution:= Cap.ResolutionDefault;
+    Contrast:= Cap.ContrastDefault;
+    Brightness:= Cap.BrightnessDefault;
+    DocHandling:= Cap.DocHandlingDefault;
+    //BitDepth:= Cap.BitDepthDefault;
+    DataType:= Cap.DataTypeDefault;
+    HAlign:= aHAlign;
+    VAlign:= aVAlign;
+  end;
+end;
+
+
 
 end.
 

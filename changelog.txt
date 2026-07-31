@@ -1,6 +1,11 @@
 XICA CHANGE LOG
 ======================
 
+2026/07/31 Basic Classes structure completed;
+           Basic Enums on WIA Classes works;
+           Added CopyDefault/CurrentValues Params in Types;
+		   Added Internal Test example.
+
 2026/07/28 Deleted UI_Common Unit;
 		   Added List manage methods to Device classes;
            Added UI DialogFunc methods to Device classes (Test with strange delphi compiler @ use);

@@ -1,0 +1,30 @@
+object XICATests: TXICATests
+  Left = 344
+  Height = 393
+  Top = 250
+  Width = 661
+  Caption = 'XICA Internal Tests'
+  ClientHeight = 393
+  ClientWidth = 661
+  LCLVersion = '4.99.0.0'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  object btListDevices: TButton
+    Left = 6
+    Height = 25
+    Top = 8
+    Width = 75
+    Caption = 'List Devices'
+    TabOrder = 0
+    OnClick = btListDevicesClick
+  end
+  object Memo1: TMemo
+    Left = 0
+    Height = 343
+    Top = 50
+    Width = 661
+    Align = alBottom
+    ScrollBars = ssAutoBoth
+    TabOrder = 1
+  end
+end
