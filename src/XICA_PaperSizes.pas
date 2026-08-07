@@ -113,23 +113,30 @@ const
    )
    );
 
+  EZeroResolution = Extended(1E-16);
+  DZeroResolution = Double(1E-12);
+  SZeroResolution = Single(1E-4);
+
 
 //  Builds a set of Paper Types contained within the specified size
-function CalculatePaperSizeSet(Max_Width, Max_Height: Single): TXICA_PaperTypes;
+function CalculatePaperSizeSet(Max_Width, Max_Height: Single; Size_Unit_cm: Boolean = False): TXICA_PaperTypes;
 
-function CalculatePaperSize(AWidth, AHeight: Single): TXICA_PaperType;
+function CalculatePaperSize(AWidth, AHeight: Single; Size_Unit_cm: Boolean = False): TXICA_PaperType;
 
 function PaperTypeNameAndSize(Unit_cm: Boolean; APaperType: TXICA_PaperType): String;
+function PaperSizeToStr(Unit_cm: Boolean; APaperW, APaperH: Single): String;
 
 var
-   Size_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
+   Paper_ErrMargin: Single = 0.100;
 
 implementation
 
-uses SysUtils;
+uses math, SysUtils;
 
-function CalculatePaperSizeSet(Max_Width, Max_Height: Single): TXICA_PaperTypes;
+function CalculatePaperSizeSet(Max_Width, Max_Height: Single; Size_Unit_cm: Boolean = False): TXICA_PaperTypes;
 var
+   wMax,
+   hMax,
    iSwap: Single;
    i: TXICA_PaperType;
 
@@ -144,25 +151,37 @@ begin
     Max_Width:= iSwap;
   end;
 
+  wMax:= Max_Width+SZeroResolution;
+  hMax:= Max_Height+SZeroResolution;
+
   for i:=ptA4 to PaperSizes_MaxIndex do
   begin
     //if the Paper is inside the Max Area then include it as selectable
-    if (PaperSizes[Size_Unit_cm, i].w <= Max_Width) and (PaperSizes[Size_Unit_cm, i].h <= Max_Height)
+    if (PaperSizes[Size_Unit_cm, i].w <= wMax) and (PaperSizes[Size_Unit_cm, i].h <= hMax)
     then Result:= Result + [i];
   end;
 end;
 
-function CalculatePaperSize(AWidth, AHeight: Single): TXICA_PaperType;
+function CalculatePaperSize(AWidth, AHeight: Single; Size_Unit_cm: Boolean = False): TXICA_PaperType;
+
 var
    i: TXICA_PaperType;
+   wMin, wMax,
+   hMin, hMax: Single;
 
 begin
   Result:= ptCUSTOM;
+
+  wMin:= AWidth-Paper_ErrMargin;
+  wMax:= AWidth+Paper_ErrMargin;
+  hMin:= AHeight-Paper_ErrMargin;
+  hMax:= AHeight+Paper_ErrMargin;
+
   for i:=ptA4 to PaperSizes_MaxIndex do
   begin
-    //if the Width/Height is equals to a Paper then select it
-    { #note -oMaxM : It might be helpful to include a margin of error }
-    if (PaperSizes[Size_Unit_cm, i].w = AWidth) and (PaperSizes[Size_Unit_cm, i].h = AHeight)
+    //if the Width/Height is equals to a Paper (with a margin of error of 1/100 of Inches) then select it
+    if (PaperSizes[Size_Unit_cm, i].w >= wMin) and (PaperSizes[Size_Unit_cm, i].w <= wMax) and
+       (PaperSizes[Size_Unit_cm, i].h >= hMin) and (PaperSizes[Size_Unit_cm, i].h <= hMax)
     then begin Result:= i; break; end;
   end;
 end;
@@ -175,8 +194,14 @@ begin
   ptAUTO: Result:= rsAutosize;
   else Result:= PaperSizes[Unit_cm, APaperType].name+' ('+
                        FloatToStrF(PaperSizes[Unit_cm, APaperType].w, ffFixed, 15, 2)+' x '+
-                       FloatToStrF(PaperSizes[Unit_cm, APaperType].h, ffFixed, 15, 2)+' '+Unit_Str[Unit_cm];
+                       FloatToStrF(PaperSizes[Unit_cm, APaperType].h, ffFixed, 15, 2)+' '+Unit_Str[Unit_cm]+')';
   end;
+end;
+
+function PaperSizeToStr(Unit_cm: Boolean; APaperW, APaperH: Single): String;
+begin
+  Result:= FloatToStrF(APaperW, ffFixed, 15, 2)+' x '+
+           FloatToStrF(APaperH, ffFixed, 15, 2)+' '+Unit_Str[Unit_cm];
 end;
 
 end.

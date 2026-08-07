@@ -34,43 +34,21 @@ resourcestring
   rsLandscape = 'Landscape';
   rsPortrait = 'Portrait';
   rsAutotype = 'Auto type';
+  rsNoSelectedItem = 'No Selected Item in Device %s';
 
 type
   TXICA_DeviceManager = class;
   TXICA_Device = class;
+  TXICA_Item = class;
 
-  { TXICA_Device }
+  { TXICA_Item }
 
-  // UI Settings of Source Device
-  TInitialItemValues = (initDefault, initParams, initCurrent);
-  TInitDefaultValuesEvent = procedure (var ACap: TXICA_ParamsCapabilities) of object;
-
-  TXICA_SettingsDialogFunc = function (ADevice: TXICA_Device;
-                                       var ASelectedItemIndex: Integer;
-                                       { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
-                                       AInitItemValues: TInitialItemValues;
-                                       var AParams: TArrayXICA_Params;
-                                       AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
-
-  TXICA_Device = class(
-                       TOpenArrayList<TXICA_Item, TKeyString>
-                       { #todo -oMaxM : Create a Unit with Bridge to other languages }
-                       //,IOpenArrayListR<TXICA_Item, TKeyString>
-                       //,IOpenArrayListW<TXICA_Item, TKeyString>
-                       )
+  TXICA_Item = class(TNoRefCountObject)
   protected
-    rOwner: TXICA_DeviceManager;
+    rOwner: TXICA_Device;
     rIndex: Integer;
-    rID,
-    rManufacturer,
     rName: String;
-    rType: TXICA_DeviceType;
-    rSubType: Word;
-    rVersion,
-    rVersionSub: Integer;
     lres: HResult;
-
-    HasEnumerated: Boolean;
 
     rPaperLandscape: Boolean;
     rXRes, rYRes: Integer;                  //if <=0 then i need to Get Values from Device
@@ -81,6 +59,9 @@ type
     rPaperHAlign: TXICA_AlignHorizontal;
     rPaperVAlign: TXICA_AlignVertical;
 
+    rParams: TXICA_Params;
+    rCapabilities: TXICA_ParamsCapabilities;
+
     StreamDestination: TFileStream;
     StreamAdapter: TStreamAdapter;
 
@@ -90,45 +71,30 @@ type
     rDownload_Ext,
     rDownload_FileName: String;
 
-    function FreeElement(var aData: TXICA_Item): Boolean; override;
-
-    //Enumerate the avaliable items
-    function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; virtual; abstract;
-    function EnumerateItems(PreserveSelected: Boolean): Boolean;
-
-    //Get Paper Width, Height form the Device (in Inches)
+(*oldcode    //Get Paper Width, Height form the Device (in Inches)
     function _GetPaperSize(out AWidth, AHeight: Single): Boolean; overload; virtual; abstract;
     function _GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean; overload; virtual; abstract;
-
+*)
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual; abstract;
 
-    class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual; abstract;
-
-    function GetType_Str: String; virtual;
-
   public
-    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+    Type_: TXICA_ItemTypes;
+    SubType: Word;
+    Category: TXICA_ItemCategory;
+    Version,
+    VersionSub: Integer;
+
+    constructor Create(AOwner: TXICA_Device; AIndex: Integer; AName: String); virtual;
     destructor Destroy; override;
-
-    function GetCount: DWord; override;
-
-    //Refresh the item list
-    procedure Refresh(PreserveSelected: Boolean=True);
 
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
     // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
     function Download(APath, AFileName, AExt: String): Integer; overload; virtual; abstract;
-    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer; overload; virtual; abstract;
+    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer; overload; virtual;
     function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
-                      out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; overload; virtual; abstract;
-
-    //Download using Native UI and return the number of files transfered in DownloadedFiles array.
-    //  The system dialog works at Device level, so the selected item is ignored
-    function DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
-                              APath, AFileName: String;
-                              out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; virtual; abstract;
+                      out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; overload; virtual;
 
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
@@ -137,8 +103,8 @@ type
     function GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags; virtual; abstract;
 
     //Get the Minimun and Maximum Resolutions Values
-    function GetResolutionsLimit(out AMin, AMax: Integer): Boolean; overload; virtual; abstract;
-    function GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean; overload; virtual; abstract;
+    function GetResolutionsLimit(out AMin, AMax: Integer): Boolean; overload; virtual;
+    function GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean; overload; virtual;
 
     //Get Current Resolutions
     function GetResolution(out AXRes, AYRes: Integer): Boolean; virtual; abstract;
@@ -148,8 +114,6 @@ type
 
     //Get Paper Width, Height (in Inches)
     function GetPaperSize(out AWidth, AHeight: Single): Boolean; overload; virtual;
-
-    //Get Paper Width, Height (in Inches)
     function GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean; overload; virtual;
 
     //Get Max Paper Width, Height (in Inches)
@@ -158,8 +122,12 @@ type
     //Set Current Paper Size (in Inches), the Area is calculated using Width, Height, Orientation and Align Values
     function SetPaperSize(Width, Height: Single): Boolean; virtual;
 
+    //Get Current Paper Rect (in Pixels)
+    function GetPaperRect(out Current: TRect): Boolean; overload; virtual; abstract;
+    function GetPaperRect(out Current, Default: TRect): Boolean; overload; virtual; abstract;
+
     //Set Current Paper Rect (in Pixels)
-    function SetPaperRect(const Left, Top, Width, Height: Integer): Boolean; virtual; abstract;
+    function SetPaperRect(const X, Y, Width, Height: Integer): Boolean; virtual; abstract;
 
     //Get Current Paper Align
     function GetPaperAlign(out ALandscape:Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean; virtual;
@@ -182,76 +150,285 @@ type
     function SetPaperLandscape(const Value: Boolean): Boolean; virtual;
 
      //Get Current Rotation, not to be confused with PaperLandscape
-    function GetRotation(var Value: TXICA_Rotation; useRoot: Boolean=False): Boolean; overload; virtual; abstract;
+    function GetRotation(out Value: TXICA_Rotation): Boolean; overload; virtual; abstract;
     //Get Available Rotations
-    function GetRotation(var Current, Default: TXICA_Rotation; var Values: TXICA_Rotations): Boolean; overload; virtual; abstract;
+    function GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean; overload; virtual; abstract;
 
     //Set Current Rotation, not to be confused with PaperLandscape,
     //  this function rotate the image after capturing it
     function SetRotation(const Value: TXICA_Rotation): Boolean; virtual; abstract;
 
     //Get Current DocumentHandling,
-    function GetDocumentHandling(var Value: TXICA_DocumentHandlings): Boolean; overload; virtual; abstract;
+    function GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean; overload; virtual; abstract;
     //Get Available DocumentHandling
-    function GetDocumentHandling(var Current, Default, Values: TXICA_DocumentHandlings): Boolean; overload; virtual; abstract;
+    function GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean; overload; virtual; abstract;
 
     //Set Current DocumentHandling,
     function SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean; virtual; abstract;
 
     //Get Current Pages (0 = All)
-    function GetPages(var Current: Integer): Boolean; overload; virtual; abstract;
+    function GetPages(out Current: Integer): Boolean; overload; virtual; abstract;
     //Get Current, Default and Range Values for Pages
-    function GetPages(var Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
+    function GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
 
     //Set Current Pages (0 = All)
     //  If a Feeder Scanner is unable to scan only one side of a page while in Duplex you must use an even value
     function SetPages(const Value: Integer): Boolean; virtual; abstract;
 
     //Get Current Brightness
-    function GetBrightness(var Current: Integer): Boolean; overload; virtual; abstract;
+    function GetBrightness(out Current: Integer): Boolean; overload; virtual; abstract;
     //Get Current, Default and Range Values for Brightness
-    function GetBrightness(var Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
+    function GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
 
     //Set Current Brightness, The user is responsible for checking the validity of the value
     function SetBrightness(const Value: Integer): Boolean; virtual; abstract;
 
     //Get Current Contrast
-    function GetContrast(var Current: Integer): Boolean; overload; virtual; abstract;
+    function GetContrast(out Current: Integer): Boolean; overload; virtual; abstract;
     //Get Current, Default and Range Values for Contrast
-    function GetContrast(var Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
+    function GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual; abstract;
 
     //Set Current Contrast, The user is responsible for checking the validity of the value
     function SetContrast(const Value: Integer): Boolean; virtual; abstract;
 
     //Get Current Image Format
-    function GetImageFormat(var Current: TXICA_ImageFormat): Boolean; overload; virtual; abstract;
+    function GetImageFormat(out Current: TXICA_ImageFormat): Boolean; overload; virtual; abstract;
     //Get Available Image Formats
-    function GetImageFormat(var Current, Default: TXICA_ImageFormat; var Values: TXICA_ImageFormats): Boolean; overload; virtual; abstract;
+    function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; virtual; abstract;
 
     //Set Current Image Format
     function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; virtual; abstract;
 
      //Get Current Image DataType
-    function GetDataType(var Current: TXICA_DataType): Boolean; overload; virtual; abstract;
+    function GetDataType(out Current: TXICA_DataType): Boolean; overload; virtual; abstract;
     //Get Available Image DataTypes
-    function GetDataType(var Current, Default: TXICA_DataType; var Values: TXICA_DataTypes): Boolean; overload; virtual; abstract;
+    function GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean; overload; virtual; abstract;
 
     //Set Current Image DataType
     function SetDataType(const Value: TXICA_DataType): Boolean; virtual; abstract;
 
     //Get Current BitDepth
-    function GetBitDepth(var Current: Integer; useRoot: Boolean=False): Boolean; overload; virtual; abstract;
+    function GetBitDepth(out Current: Integer): Boolean; overload; virtual; abstract;
     //Get Available Values for BitDepth
-    function GetBitDepth(var Current, Default: Integer; var Values: TArrayInteger): Boolean; overload; virtual; abstract;
+    function GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean; overload; virtual; abstract;
 
     //Set Current BitDepth, The user is responsible for checking the validity of the value
     function SetBitDepth(const Value: Integer): Boolean; virtual; abstract;
 
     //Get Capabilities for Current Selected Item
-    function GetParamsCapabilities(var Value: TXICA_ParamsCapabilities): Boolean;
+    function GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean; virtual;
 
     //Set Params to Current Selected Item
-    function SetParams(const AParams: TXICA_Params): Boolean;
+    function SetParams(const AParams: TXICA_Params): Boolean; virtual;
+
+    property Name: String read rName;
+  end;
+  PXICA_Item = ^TXICA_Item;
+  TArrayXICA_Item = array of TXICA_Item;
+
+  { TXICA_Device }
+
+  // UI Settings of Source Device
+  TInitialItemValues = (initDefault, initParams, initCurrent);
+  TInitDefaultValuesEvent = procedure (var ACap: TXICA_ParamsCapabilities) of object;
+
+  TXICA_SettingsDialogFunc = function (ADevice: TXICA_Device;
+                                       var ASelectedItemIndex: Integer;
+                                       { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
+                                       AInitItemValues: TInitialItemValues;
+                                       var AParams: TArrayXICA_Params;
+                                       AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
+
+  TXICA_OnDeviceTransfer = function (ADevice: TXICA_Device; AItem: TXICA_Item
+                                     (*lFlags: LONG; pWiaTransferParams: PWiaTransferParams*)): Boolean of object;
+
+
+  TXICA_Device = class(
+                       TOpenArrayList<TXICA_Item, TKeyString>
+                       { #todo -oMaxM : Create a Unit with Bridge to other languages }
+                       //,IOpenArrayListR<TXICA_Item, TKeyString>
+                       //,IOpenArrayListW<TXICA_Item, TKeyString>
+                       )
+  protected
+    rOwner: TXICA_DeviceManager;
+    rIndex: Integer;
+    rID,
+    rManufacturer,
+    rName: String;
+    rType: TXICA_DeviceType;
+    rSubType: Word;
+    rVersion,
+    rVersionSub: Integer;
+    lres: HResult;
+
+    HasEnumerated: Boolean;
+
+    rOnAfterDeviceTransfer,
+    rOnBeforeDeviceTransfer: TXICA_OnDeviceTransfer;
+
+    function FreeElement(var aData: TXICA_Item): Boolean; override;
+
+    //Enumerate the avaliable items
+    function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; virtual; abstract;
+    function EnumerateItems(PreserveSelected: Boolean): Boolean;
+
+
+    class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual; abstract;
+
+    function GetType_Str: String; virtual;
+
+  public
+    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String); virtual;
+    destructor Destroy; override;
+
+    function GetCount: DWord; override;
+
+    //Refresh the item list
+    procedure Refresh(PreserveSelected: Boolean=True);
+
+    // ALL the following methods calls then same method of Selected Item, if there is no Selected Item raise an Exception
+
+    //Download the Selected Item and return the number of files transfered.
+    // if multiple pages is downloaded then the file names are
+    // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
+    function Download(APath, AFileName, AExt: String): Integer; overload; virtual;
+    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer; overload; virtual;
+    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
+                      out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; overload; virtual;
+
+    //Download using Native UI and return the number of files transfered in DownloadedFiles array.
+    //  The system dialog works at Device level, so the selected item is ignored
+    function DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
+                              APath, AFileName: String;
+                              out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; virtual; abstract;
+
+    //Get Available Values for XResolution,
+    //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
+    function GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags; virtual;
+    //Get Available Values for YResolutions
+    function GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags; virtual;
+
+    //Get the Minimun and Maximum Resolutions Values
+    function GetResolutionsLimit(out AMin, AMax: Integer): Boolean; overload; virtual;
+    function GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean; overload; virtual;
+
+    //Get Current Resolutions
+    function GetResolution(out AXRes, AYRes: Integer): Boolean; virtual;
+
+    //Set Current Resolutions, The user is responsible for checking the validity of the values
+    function SetResolution(const AXRes, AYRes: Integer): Boolean; virtual;
+
+    //Get Paper Width, Height (in Inches)
+    function GetPaperSize(out AWidth, AHeight: Single): Boolean; overload; virtual;
+
+    //Get Paper Width, Height (in Inches)
+    function GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean; overload; virtual;
+
+    //Get Max Paper Width, Height (in Inches)
+    function GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual;
+
+    //Set Current Paper Size (in Inches), the Area is calculated using Width, Height, Orientation and Align Values
+    function SetPaperSize(Width, Height: Single): Boolean; virtual;
+
+    //Get Current Paper Rect (in Pixels)
+    //Get Current Paper Rect (in Pixels)
+    function GetPaperRect(out Current: TRect): Boolean; overload; virtual;
+    function GetPaperRect(out Current, Default: TRect): Boolean; overload; virtual;
+
+    //Set Current Paper Rect (in Pixels)
+    function SetPaperRect(const X, Y, Width, Height: Integer): Boolean; virtual;
+
+    //Get Current Paper Align
+    function GetPaperAlign(out ALandscape:Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean; virtual;
+    //Set Current Paper Align
+    function SetPaperAlign(const ALandscape:Boolean; const HAlign: TXICA_AlignHorizontal; const VAlign: TXICA_AlignVertical): Boolean; virtual;
+
+    //Get Current Paper Type
+    function GetPaperType(out Current: TXICA_PaperType): Boolean; overload; virtual;
+
+    //Get Available Paper Sizes
+    function GetPaperType(out Current, Default: TXICA_PaperType; out Values: TXICA_PaperTypes): Boolean; overload; virtual;
+
+    //Set Current Paper Type,
+    function SetPaperType(const Value: TXICA_PaperType): Boolean; virtual;
+
+    //Get Current Paper Landscape,
+    function GetPaperLandscape(out Value: Boolean): Boolean; virtual;
+
+    //Set Current Paper Landscape,
+    function SetPaperLandscape(const Value: Boolean): Boolean; virtual;
+
+     //Get Current Rotation, not to be confused with PaperLandscape
+    function GetRotation(out Value: TXICA_Rotation): Boolean; overload; virtual;
+    //Get Available Rotations
+    function GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean; overload; virtual;
+
+    //Set Current Rotation, not to be confused with PaperLandscape,
+    //  this function rotate the image after capturing it
+    function SetRotation(const Value: TXICA_Rotation): Boolean; virtual;
+
+    //Get Current DocumentHandling,
+    function GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean; overload; virtual;
+    //Get Available DocumentHandling
+    function GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean; overload; virtual;
+
+    //Set Current DocumentHandling,
+    function SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean; virtual;
+
+    //Get Current Pages (0 = All)
+    function GetPages(out Current: Integer): Boolean; overload; virtual;
+    //Get Current, Default and Range Values for Pages
+    function GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual;
+
+    //Set Current Pages (0 = All)
+    //  If a Feeder Scanner is unable to scan only one side of a page while in Duplex you must use an even value
+    function SetPages(const Value: Integer): Boolean; virtual;
+
+    //Get Current Brightness
+    function GetBrightness(out Current: Integer): Boolean; overload; virtual;
+    //Get Current, Default and Range Values for Brightness
+    function GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual;
+
+    //Set Current Brightness, The user is responsible for checking the validity of the value
+    function SetBrightness(const Value: Integer): Boolean; virtual;
+
+    //Get Current Contrast
+    function GetContrast(out Current: Integer): Boolean; overload; virtual;
+    //Get Current, Default and Range Values for Contrast
+    function GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean; overload; virtual;
+
+    //Set Current Contrast, The user is responsible for checking the validity of the value
+    function SetContrast(const Value: Integer): Boolean; virtual;
+
+    //Get Current Image Format
+    function GetImageFormat(out Current: TXICA_ImageFormat): Boolean; overload; virtual;
+    //Get Available Image Formats
+    function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; virtual;
+
+    //Set Current Image Format
+    function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; virtual;
+
+     //Get Current Image DataType
+    function GetDataType(out Current: TXICA_DataType): Boolean; overload; virtual;
+    //Get Available Image DataTypes
+    function GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean; overload; virtual;
+
+    //Set Current Image DataType
+    function SetDataType(const Value: TXICA_DataType): Boolean; virtual;
+
+    //Get Current BitDepth
+    function GetBitDepth(out Current: Integer): Boolean; overload; virtual;
+    //Get Available Values for BitDepth
+    function GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean; overload; virtual;
+
+    //Set Current BitDepth, The user is responsible for checking the validity of the value
+    function SetBitDepth(const Value: Integer): Boolean; virtual;
+
+    //Get Capabilities for Current Selected Item
+    function GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean; virtual;
+
+    //Set Params to Current Selected Item
+    function SetParams(const AParams: TXICA_Params): Boolean; virtual;
 
     //Display a dialog to let the user choose Settings of the Device
     function SettingsDeviceDialog(var ASelectedItemIndex: Integer;
@@ -270,13 +447,17 @@ type
     //Version and SubVersion of Device
     property Version: Integer read rVersion write rVersion;
     property VersionSub: Integer read rVersionSub write rVersionSub;
+
+    //Events
+    property OnBeforeDeviceTransfer: TXICA_OnDeviceTransfer read rOnBeforeDeviceTransfer write rOnBeforeDeviceTransfer;
+    property OnAfterDeviceTransfer: TXICA_OnDeviceTransfer read rOnAfterDeviceTransfer write rOnAfterDeviceTransfer;
   end;
 
   { TXICA_DeviceManager }
 
   TXICA_SelectDialogFunc = function (ADeviceManager: TXICA_DeviceManager): Integer;
 
-  TXICA_OnDeviceTransfer = function (ADeviceManager: TXICA_DeviceManager; AWiaDevice: TXICA_Device
+  TXICA_OnDeviceManagerTransfer = function (ADeviceManager: TXICA_DeviceManager; AWiaDevice: TXICA_Device
                                      (*lFlags: LONG; pWiaTransferParams: PWiaTransferParams*)): Boolean of object;
 
   TXICA_DeviceManager = class(TOpenArrayList<TXICA_Device, TKeyString>)
@@ -287,7 +468,7 @@ type
     lres: HResult;
     HasEnumerated: Boolean;
     rOnAfterDeviceTransfer,
-    rOnBeforeDeviceTransfer: TXICA_OnDeviceTransfer;
+    rOnBeforeDeviceTransfer: TXICA_OnDeviceManagerTransfer;
 
     function FreeElement(var aData: TXICA_Device): Boolean; override;
 
@@ -298,7 +479,7 @@ type
     class function SelectDialogFunc: TXICA_SelectDialogFunc; virtual; abstract;
 
   public
-    constructor Create(AEnumAll: Boolean = True);
+    constructor Create(const AEnumAll: Boolean = True);
     destructor Destroy; override;
 
     //Clears the list of devices
@@ -307,7 +488,7 @@ type
     function GetCount: DWord; override;
 
     //Refresh the list of devices
-    procedure Refresh(PreserveSelected: Boolean=True);
+    procedure Refresh(const PreserveSelected: Boolean=True);
 
     //Display a dialog to let the user choose a Device and returns it's index
     function SelectDeviceDialog: Integer; virtual;
@@ -316,10 +497,10 @@ type
     //  to Find Device by ID use FindByKey(ID)
     //  to Find Device by it's class use Find(Value: TXICA_Device)
     //  Find Device by it's Name (set Manufacturer to '' to Find only by Name)
-    function Find(AName, AManufacturer: String): Integer; overload; virtual;
+    function Find(const AName, AManufacturer: String): Integer; overload; virtual;
 
     //Find a Device by it's ID and Select the given Item
-    procedure SelectDeviceItem(ADeviceID, ADeviceItem: String; out ADevice: TXICA_Device; var ADeviceItemIndex: Integer);
+    procedure SelectDeviceItem(const ADeviceID, ADeviceItem: String; out ADevice: TXICA_Device; out ADeviceItemIndex: Integer);
 
     //Name of the Library
     class function Name: String; virtual; abstract;
@@ -332,67 +513,37 @@ type
     property EnumAll: Boolean read rEnumAll write rEnumAll;
 
     //Events
-    property OnBeforeDeviceTransfer: TXICA_OnDeviceTransfer read rOnBeforeDeviceTransfer write rOnBeforeDeviceTransfer;
-    property OnAfterDeviceTransfer: TXICA_OnDeviceTransfer read rOnAfterDeviceTransfer write rOnAfterDeviceTransfer;
+    property OnBeforeDeviceTransfer: TXICA_OnDeviceManagerTransfer read rOnBeforeDeviceTransfer write rOnBeforeDeviceTransfer;
+    property OnAfterDeviceTransfer: TXICA_OnDeviceManagerTransfer read rOnAfterDeviceTransfer write rOnAfterDeviceTransfer;
   end;
 
+procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
 
 implementation
 
-uses XICA_PaperSizes;
+uses math, XICA_PaperSizes;
 
-{ TXICA_Device }
 
-function TXICA_Device.FreeElement(var aData: TXICA_Item): Boolean;
-begin
-  try
-     FreeAndNil(aData);
-     Result:= True;
-  except
-    Result:= False;
-  end;
-end;
-
-function TXICA_Device.EnumerateItems(PreserveSelected: Boolean): Boolean;
+procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
 var
-   lastSelected: ^TXICA_Item;
+   rVer, rVerSub: Integer;
 
 begin
-  Result:= False;
-
-  if PreserveSelected
-  then lastSelected:= Selected
-  else lastSelected:= nil;
-
-  Clear(PreserveSelected);
-
-  try
-     //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
-     if (lastSelected = nil)
-     then Result:= _EnumerateItems(PreserveSelected, nil)
-     else Result:= _EnumerateItems(PreserveSelected, lastSelected^);
-
-     //Result:= _EnumerateItems(PreserveSelected, lastSelected);
-
-  except
-    Clear(PreserveSelected);
-    Result:= False;
-  end;
+  VersionStrToInt(s, rVer, rVerSub);
+  ADevice.Version:= rVer;
+  ADevice.VersionSub:= rVerSub;
 end;
 
-function TXICA_Device.GetType_Str: String;
-begin
-  Result:= XICA_DeviceType(rType);
-end;
 
-constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+{ TXICA_Item }
+
+constructor TXICA_Item.Create(AOwner: TXICA_Device; AIndex: Integer; AName: String);
 begin
   inherited Create;
 
-  rOwner :=AOwner;
-  HasEnumerated :=False;
-  rIndex :=AIndex;
-  rID :=ADeviceID;
+  rOwner:= AOwner;
+  rIndex:= AIndex;
+  rName:= AName;
 
   StreamAdapter:= nil;
   StreamDestination:= nil;
@@ -411,32 +562,164 @@ begin
   rPaperHAlign:= xaHLeft;
 end;
 
-destructor TXICA_Device.Destroy;
+destructor TXICA_Item.Destroy;
 begin
-  if (StreamAdapter <> nil) then StreamAdapter:= nil;
-
   inherited Destroy;
 end;
 
-function TXICA_Device.GetCount: DWord;
+function TXICA_Item.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
 begin
-  //Enumerate Items if needed
-  if not(HasEnumerated)
-  then HasEnumerated:= EnumerateItems(False);
+  Result:= 0;
 
-  Result:=inherited GetCount;
+  if SetImageFormat(AFormat) then Result:= Download(APath, AFileName, AExt);
 end;
 
-procedure TXICA_Device.Refresh(PreserveSelected: Boolean);
+function TXICA_Item.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
+                             out DownloadedFiles: TStringArray; UseRelativePath: Boolean): Integer;
+var
+   i: Integer;
+
 begin
-  HasEnumerated:= EnumerateItems(PreserveSelected);
+  Result:= 0;
+  DownloadedFiles:= nil;
+
+  if SetImageFormat(AFormat) then
+  begin
+    Result:= Download(APath, AFileName, AExt);
+    if (Result > 0 ) then
+    begin
+      SetLength(DownloadedFiles, Result);
+
+      if UseRelativePath
+      then begin
+             DownloadedFiles[0]:= rDownload_FileName+rDownload_Ext;
+             for i:=1 to Result-1 do
+               DownloadedFiles[i]:= rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
+           end
+      else begin
+             DownloadedFiles[0]:= rDownload_Path+rDownload_FileName+rDownload_Ext;
+             for i:=1 to Result-1 do
+               DownloadedFiles[i]:= rDownload_Path+rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
+           end;
+    end;
+  end;
 end;
 
-function TXICA_Device.GetPaperSize(out AWidth, AHeight: Single): Boolean;
+function TXICA_Item.GetResolutionsLimit(out AMin, AMax: Integer): Boolean;
+var
+   Current,
+   Default: Integer;
+   pFlags: TXICA_PropertyFlags;
+   Values: TArrayInteger;
+
 begin
-  if (rPaperWidth > 0) and (rPaperHeight > 0)
-  then Result:= True
-  else Result:= _GetPaperSize(rPaperWidth, rPaperHeight);
+  Result:= False;
+  try
+     pFlags:= GetResolutionsX(Current, Default, Values);
+     if not(prop_READ in pFlags) then exit;
+
+     if (prop_RANGE in pFlags)
+     then begin
+            AMin:= Values[prop_RANGE_MIN];
+            AMax:= Values[prop_RANGE_MAX];
+            Result:= True;
+        end
+     else
+     if (prop_LIST in pFlags)
+     then begin
+            //In theory the minimum is the first value and the maximum is the last,
+            //  but you never know a little paranoia doesn't hurt
+            AMin:= MaxInt;
+            AMax:= 0;
+            for Current:=0 to Length(Values)-1 do
+            begin
+              if (Values[Current] < AMin) then AMin:= Values[Current];
+              if (Values[Current] > AMax) then AMax:= Values[Current];
+            end;
+            Result:= True;
+          end;
+
+  finally
+    Values:= nil;
+  end;
+end;
+
+function TXICA_Item.GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean;
+var
+   propType: TVarType;
+   Current,
+   Default: Integer;
+   pFlags: TXICA_PropertyFlags;
+   ValuesX,
+   ValuesY: TArrayInteger;
+
+begin
+  Result:= False;
+  try
+     pFlags:= GetResolutionsX(Current, Default, ValuesX);
+     if not(prop_READ in pFlags) then exit;
+
+     pFlags:= GetResolutionsY(Current, Default, ValuesY);
+     if not(prop_READ in pFlags) then exit;
+
+     if (prop_RANGE in pFlags)
+     then begin
+            AMinX:= ValuesX[prop_RANGE_MIN];
+            AMaxX:= ValuesX[prop_RANGE_MAX];
+            AMinY:= ValuesY[prop_RANGE_MIN];
+            AMaxY:= ValuesY[prop_RANGE_MAX];
+            Result:= True;
+        end
+     else
+     if (prop_LIST in pFlags)
+     then begin
+            //In theory the minimum is the first value and the maximum is the last,
+            //  but you never know a little paranoia doesn't hurt
+            AMinX:= MaxInt;
+            AMaxX:= 0;
+            AMinY:= MaxInt;
+            AMaxY:= 0;
+            for Current:=0 to Length(ValuesX)-1 do
+            begin
+              if (ValuesX[Current] < AMinX) then AMinX:= ValuesX[Current];
+              if (ValuesX[Current] > AMaxX) then AMaxX:= ValuesX[Current];
+              try
+                 //Y may have a different size than X, use try/except block
+                 if (ValuesY[Current] < AMinY) then AMinY:= ValuesY[Current];
+                 if (ValuesY[Current] > AMaxY) then AMaxY:= ValuesY[Current];
+              except
+              end;
+            end;
+            Result:= True;
+          end;
+
+  finally
+    ValuesX:= nil;
+    ValuesY:= nil;
+  end;
+end;
+
+function TXICA_Item.GetPaperSize(out AWidth, AHeight: Single): Boolean;
+var
+   pRect: TRect;
+
+begin
+  Result:= (rPaperWidth > 0) and (rPaperHeight > 0);
+
+  if not(Result) then
+  begin
+    if (rXRes = -1) or (rYRes = -1)
+    then if not(GetResolution(rXRes, rYRes)) then Exit;
+
+    Result:= GetPaperRect(pRect);
+    if Result then
+    begin
+      rPaperWidth:= pRect.Width/rXRes;
+      rPaperHeight:= pRect.Height/rYRes;
+
+      { #todo -oMaxM : Calculate the Aligns ? }
+    end;
+  end;
 
   if Result then
   begin
@@ -445,12 +728,33 @@ begin
   end;
 end;
 
-function TXICA_Device.GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean;
+function TXICA_Item.GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean;
+var
+   pRect, pDefRect: TRect;
+   defXRes,defYRes: Integer;
+   iRes: TArrayInteger;
+
 begin
-  if (rPaperWidth > 0) and (rPaperHeight > 0) and
-     (rPaperDefaultWidth > 0) and (rPaperDefaultHeight > 0)
-  then Result:= True
-  else Result:= _GetPaperSize(rPaperWidth, rPaperHeight, rPaperDefaultWidth, rPaperDefaultHeight);
+  Result:= (rPaperWidth > 0) and (rPaperHeight > 0) and
+           (rPaperDefaultWidth > 0) and (rPaperDefaultHeight > 0);
+
+  if not(Result) then
+  begin
+    if (rXRes = -1) or (rYRes = -1)
+    then if not(prop_Read in GetResolutionsX(rXRes, defXRes, iRes)) or
+            not(prop_Read in GetResolutionsY(rYRes, defYRes, iRes)) then Exit; { #todo -oMaxM : Default Rect is in Default Resolutions ? }
+
+    Result:= GetPaperRect(pRect, pDefRect);
+    if Result then
+    begin
+      rPaperWidth:= pRect.Width/rXRes;
+      rPaperHeight:= pRect.Height/rYRes;
+
+      rPaperDefaultWidth:= pDefRect.Width/defXRes;
+      rPaperDefaultHeight:= pDefRect.Height/defYRes;
+      { #todo -oMaxM : Calculate the Aligns ? }
+    end;
+  end;
 
   if Result then
   begin
@@ -461,7 +765,7 @@ begin
   end;
 end;
 
-function TXICA_Device.GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
+function TXICA_Item.GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
 begin
   if (rPaperWidth > 0) and (rPaperHeight > 0)
   then Result:= True
@@ -474,7 +778,7 @@ begin
   end;
 end;
 
-function TXICA_Device.SetPaperSize(Width, Height: Single): Boolean;
+function TXICA_Item.SetPaperSize(Width, Height: Single): Boolean;
 var
    MaxWidth,
    MaxHeight,
@@ -490,7 +794,6 @@ begin
   if (rXRes = -1) or (rYRes = -1)
   then if not(GetResolution(rXRes, rYRes)) then Exit;
 
-  //Check if the paper size fits within the entire area
   if (rPaperLandscape) then
   begin
     //Swap Width with Height
@@ -522,14 +825,14 @@ begin
   Result:= SetPaperRect(Trunc(X*rXRes), Trunc(Y*rYRes), Trunc(Width*rXRes), Trunc(Height*rYRes));
 end;
 
-function TXICA_Device.GetPaperAlign(out ALandscape: Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean;
+function TXICA_Item.GetPaperAlign(out ALandscape: Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean;
 begin
   HAlign:= rPaperHAlign;
   VAlign:= rPaperVAlign;
   Result:= GetPaperLandscape(ALandscape);
 end;
 
-function TXICA_Device.SetPaperAlign(const ALandscape: Boolean; const HAlign: TXICA_AlignHorizontal; const VAlign: TXICA_AlignVertical): Boolean;
+function TXICA_Item.SetPaperAlign(const ALandscape: Boolean; const HAlign: TXICA_AlignHorizontal; const VAlign: TXICA_AlignVertical): Boolean;
 begin
   Result:= SetPaperLandscape(ALandscape);
   if Result then
@@ -539,55 +842,64 @@ begin
   end;
 end;
 
-function TXICA_Device.GetPaperType(out Current: TXICA_PaperType): Boolean;
+function TXICA_Item.GetPaperType(out Current: TXICA_PaperType): Boolean;
 var
-   iMaxWidth,
-   iMaxHeight,
-   iWidth,
-   iHeight: Single;
+   sMaxWidth,
+   sMaxHeight,
+   sWidth,
+   sHeight: Single;
 
 begin
-  Result:= GetPaperSize(iWidth, iHeight);
+  Result:= GetPaperSize(sWidth, sHeight);
 
   if Result
   then begin
-         Result:= GetPaperSizeMax(iMaxWidth, iMaxHeight);
-         if (iWidth >= iMaxWidth) or (iHeight >= iMaxHeight)
+         Result:= GetPaperSizeMax(sMaxWidth, sMaxHeight);
+
+         if SameValue(sWidth, sMaxWidth) and SameValue(sHeight, sMaxHeight)
          then Current:= ptMAX
-         else Current:= CalculatePaperSize(iWidth, iHeight);
+         else Current:= CalculatePaperSize(sWidth, sHeight);
        end
   else Current:= ptMAX;
 end;
 
-function TXICA_Device.GetPaperType(out Current, Default: TXICA_PaperType; out Values: TXICA_PaperTypes): Boolean;
+function TXICA_Item.GetPaperType(out Current, Default: TXICA_PaperType; out Values: TXICA_PaperTypes): Boolean;
 var
-   iMaxWidth,
-   iMaxHeight,
-   iWidth,
-   iHeight: Single;
+   sMaxWidth,
+   sMaxHeight,
+   sWidth, sDefWidth,
+   sHeight, sDefHeight: Single;
 
 begin
   Result:= False;
   Values:= [];
 
-  Result:= GetPaperSizeMax(iMaxWidth, iMaxHeight);
+  Result:= GetPaperSizeMax(sMaxWidth, sMaxHeight);
   if Result then
   begin
-    Values:= CalculatePaperSizeSet(iMaxWidth, iMaxHeight);
+    Values:= CalculatePaperSizeSet(sMaxWidth, sMaxHeight);
 
-    if GetPaperSize(iWidth, iHeight, iMaxWidth, iMaxHeight)
-    then begin
-           Current:= CalculatePaperSize(iWidth, iHeight);
-           Default:= CalculatePaperSize(iMaxWidth, iMaxHeight);
-         end
-    else begin
-           Current:= ptA4;
-           Default:= ptA4;
-         end;
+    Result:= GetPaperSize(sWidth, sHeight, sDefWidth, sDefHeight);
+    if Result then
+    begin
+      if SameValue(sWidth, sMaxWidth) and SameValue(sHeight, sMaxHeight)
+      then Current:= ptMAX
+      else Current:= CalculatePaperSize(sWidth, sHeight);
+
+      if SameValue(sDefWidth, sMaxWidth) and SameValue(sDefHeight, sMaxHeight)
+      then Default:= ptMAX
+      else Default:= CalculatePaperSize(sDefWidth, sDefHeight);
+    end;
+  end;
+
+  if not(Result) then
+  begin
+    Current:= ptMAX;
+    Default:= ptMAX;
   end;
 end;
 
-function TXICA_Device.SetPaperType(const Value: TXICA_PaperType): Boolean;
+function TXICA_Item.SetPaperType(const Value: TXICA_PaperType): Boolean;
 var
    propType: TVarType;
    MaxWidth,
@@ -651,19 +963,19 @@ begin
   Result:= SetPaperRect(Trunc(X*rXRes), Trunc(Y*rYRes), Trunc(Width*rXRes), Trunc(Height*rYRes));
 end;
 
-function TXICA_Device.GetPaperLandscape(out Value: Boolean): Boolean;
+function TXICA_Item.GetPaperLandscape(out Value: Boolean): Boolean;
 begin
   Value:= rPaperLandscape;
   Result:= True;
 end;
 
-function TXICA_Device.SetPaperLandscape(const Value: Boolean): Boolean;
+function TXICA_Item.SetPaperLandscape(const Value: Boolean): Boolean;
 begin
   rPaperLandscape:= Value;
   Result:= True;
 end;
 
-function TXICA_Device.GetParamsCapabilities(var Value: TXICA_ParamsCapabilities): Boolean;
+function TXICA_Item.GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean;
 var
    pFlags: TXICA_PropertyFlags;
 
@@ -673,7 +985,7 @@ begin
 
   with Value do
   begin
-    if (Selected = nil) or (Selected^.Category <> xicAUTO) then
+    if (Category <> xicAUTO) then
     begin
       Result:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
       //if not(Result) then raise Exception.Create('GetPaperSizeMax');
@@ -712,13 +1024,13 @@ begin
   Result:= True;
 end;
 
-function TXICA_Device.SetParams(const AParams: TXICA_Params): Boolean;
+function TXICA_Item.SetParams(const AParams: TXICA_Params): Boolean;
 begin
   Result:= False;
 
   with AParams do
   begin
-    if (Selected = nil) or (Selected.Category <> xicAUTO) then
+    if (Category <> xicAUTO) then
     begin
       Result:= SetResolution(Resolution, Resolution);
       //if not(Result) then raise Exception.Create('SetResolution');
@@ -750,6 +1062,376 @@ begin
     end
     else Result:= True;
   end;
+end;
+
+
+{ TXICA_Device }
+
+function TXICA_Device.FreeElement(var aData: TXICA_Item): Boolean;
+begin
+  try
+     FreeAndNil(aData);
+     Result:= True;
+  except
+    Result:= False;
+  end;
+end;
+
+function TXICA_Device.EnumerateItems(PreserveSelected: Boolean): Boolean;
+var
+   lastSelected: ^TXICA_Item;
+
+begin
+  Result:= False;
+
+  if PreserveSelected
+  then lastSelected:= Selected
+  else lastSelected:= nil;
+
+  Clear(PreserveSelected);
+
+  try
+     //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
+     if (lastSelected = nil)
+     then Result:= _EnumerateItems(PreserveSelected, nil)
+     else Result:= _EnumerateItems(PreserveSelected, lastSelected^);
+
+     //Result:= _EnumerateItems(PreserveSelected, lastSelected);
+
+  except
+    Clear(PreserveSelected);
+    Result:= False;
+  end;
+end;
+
+function TXICA_Device.GetType_Str: String;
+begin
+  Result:= XICA_DeviceType(rType);
+end;
+
+constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+begin
+  inherited Create;
+
+  rOwner :=AOwner;
+  HasEnumerated :=False;
+  rIndex :=AIndex;
+  rID :=ADeviceID;
+end;
+
+destructor TXICA_Device.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TXICA_Device.GetCount: DWord;
+begin
+  //Enumerate Items if needed
+  if not(HasEnumerated)
+  then HasEnumerated:= EnumerateItems(False);
+
+  Result:=inherited GetCount;
+end;
+
+procedure TXICA_Device.Refresh(PreserveSelected: Boolean);
+begin
+  HasEnumerated:= EnumerateItems(PreserveSelected);
+end;
+
+function TXICA_Device.Download(APath, AFileName, AExt: String): Integer;
+begin
+  if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
+begin
+  if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt, AFormat)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.Download(APath, AFileName, AExt: String;
+                               AFormat: TXICA_ImageFormat; out DownloadedFiles: TStringArray;
+                               UseRelativePath: Boolean): Integer;
+begin
+  if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt, AFormat, DownloadedFiles, UseRelativePath)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetResolutionsX(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetResolutionsY(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetResolutionsLimit(out AMin, AMax: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetResolutionsLimit(AMin, AMax)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetResolutionsLimit(AMinX, AMaxX, AMinY, AMaxY)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetResolution(out AXRes, AYRes: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetResolution(AXRes, AYRes)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetResolution(const AXRes, AYRes: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetResolution(AXRes, AYRes)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperSize(out AWidth, AHeight: Single): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperSize(AWidth, AHeight)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperSize(AWidth, AHeight, ADefaultWidth, ADefaultHeight)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperSizeMax(AMaxWidth, AMaxHeight)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPaperSize(Width, Height: Single): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPaperSize(Width, Height)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperRect(out Current: TRect): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperRect(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperRect(out Current, Default: TRect): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperRect(Current, Default)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPaperRect(X, Y, Width, Height)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperAlign(out ALandscape: Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperAlign(ALandscape, HAlign, VAlign)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPaperAlign(const ALandscape: Boolean; const HAlign: TXICA_AlignHorizontal; const VAlign: TXICA_AlignVertical): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPaperAlign(ALandscape, HAlign, VAlign)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperType(out Current: TXICA_PaperType): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperType(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperType(out Current, Default: TXICA_PaperType; out Values: TXICA_PaperTypes): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperType(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPaperType(const Value: TXICA_PaperType): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPaperType(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPaperLandscape(out Value: Boolean): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPaperLandscape(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPaperLandscape(const Value: Boolean): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPaperLandscape(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetRotation(out Value: TXICA_Rotation): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetRotation(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetRotation(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetRotation(const Value: TXICA_Rotation): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetRotation(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetDocumentHandling(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetDocumentHandling(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetDocumentHandling(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPages(out Current: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPages(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetPages(Current, Default, AMin, AMax, AStep)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetPages(const Value: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetPages(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetBrightness(out Current: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetBrightness(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetBrightness(Current, Default, AMin, AMax, AStep)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetBrightness(const Value: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetBrightness(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetContrast(out Current: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetContrast(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetContrast(Current, Default, AMin, AMax, AStep)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetContrast(const Value: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetContrast(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetImageFormat(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetImageFormat(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetImageFormat(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetDataType(out Current: TXICA_DataType): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetDataType(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetDataType(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetDataType(const Value: TXICA_DataType): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetDataType(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetBitDepth(out Current: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetBitDepth(Current)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetBitDepth(Current, Default, Values)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetBitDepth(const Value: Integer): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetBitDepth(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.GetParamsCapabilities(Value)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+function TXICA_Device.SetParams(const AParams: TXICA_Params): Boolean;
+begin
+  if (Selected <> nil) then Result:= Selected^.SetParams(AParams)
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SettingsDeviceDialog(var ASelectedItemIndex: Integer;
@@ -808,7 +1490,7 @@ begin
   end;
 end;
 
-constructor TXICA_DeviceManager.Create(AEnumAll: Boolean);
+constructor TXICA_DeviceManager.Create(const AEnumAll: Boolean);
 begin
   inherited Create;
 
@@ -835,7 +1517,7 @@ begin
   Result:=inherited GetCount;
 end;
 
-procedure TXICA_DeviceManager.Refresh(PreserveSelected: Boolean);
+procedure TXICA_DeviceManager.Refresh(const PreserveSelected: Boolean);
 begin
   HasEnumerated:= EnumerateDevices(PreserveSelected);
 end;
@@ -854,7 +1536,7 @@ begin
   end;
 end;
 
-function TXICA_DeviceManager.Find(AName, AManufacturer: String): Integer;
+function TXICA_DeviceManager.Find(const AName, AManufacturer: String): Integer;
 var
    i: Integer;
 
@@ -870,8 +1552,8 @@ begin
   end;
 end;
 
-procedure TXICA_DeviceManager.SelectDeviceItem(ADeviceID, ADeviceItem: String;
-                                               out ADevice: TXICA_Device; var ADeviceItemIndex: Integer);
+procedure TXICA_DeviceManager.SelectDeviceItem(const ADeviceID, ADeviceItem: String;
+                                               out ADevice: TXICA_Device; out ADeviceItemIndex: Integer);
 var
    iDevice: Integer;
 
@@ -885,6 +1567,7 @@ begin
      begin
        ADevice:= rList[iDevice].Data;
        ADevice.Select(ADeviceItem);
+       ADeviceItemIndex:= ADevice.SelectedIndex;
      end;
 
   except

@@ -9,6 +9,12 @@ msgstr "Tipo Automatico"
 msgid "Landscape"
 msgstr "Orizzontale"
 
+#: xica_classes.rsnoselecteditem
+#, object-pascal-format
+msgid "No Selected Item in Device %s"
+msgstr ""
+
 #: xica_classes.rsportrait
 msgid "Portrait"
 msgstr "Verticale"
+

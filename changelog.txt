@@ -1,6 +1,10 @@
 XICA CHANGE LOG
 ======================
 
+2026/08/07 Clarified (more or less) the basic class structure;
+           First version of the WIA manager;
+           First tests of Listing devices and getting properties.
+
 2026/07/31 Basic Classes structure completed;
            Basic Enums on WIA Classes works;
            Added CopyDefault/CurrentValues Params in Types;

@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  XICA_Types, XICA_Classes, XICA, XICA_WIA;
+  XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA;
 
 type
 
@@ -55,6 +55,10 @@ var
    curItem: TXICA_Item;
    curName: String;
 
+   resMin, resMax: Integer;
+   pDefWidth, pDefHeight,
+   pWidth, pHeight: Single;
+
 begin
   if (XICA_Manager <> nil) then
   begin
@@ -85,6 +89,21 @@ begin
                 Memo1.Lines.Add('                         ['+IntToStr(i)+'] => NAME='+curItem.Name);
                 (*Memo1.Lines.Add('                         TYPE='+SetToString(TypeInfo(TXICA_ItemTypes), Integer(curItem.Type_))+
                                                          ' CATEGORY='+SetToString(TypeInfo(TXICA_ItemCategory), Integer(curItem.Category)));*)
+
+                if curItem.GetResolutionsLimit(resMin, resMax)
+                then Memo1.Lines.Add('                         RES='+IntToStr(resMin)+'..'+IntToStr(resMax))
+                else Memo1.Lines.Add('                         RES= <NO VALUES>');
+
+                if curItem.GetPaperSizeMax(pWidth, pHeight)
+                then Memo1.Lines.Add('                         PAPER MAX='+PaperSizeToStr(False, pWidth, pHeight))
+                else Memo1.Lines.Add('                         PAPER MAX= <NO VALUES>');
+
+                if curItem.GetPaperSize(pWidth, pHeight, pDefWidth, pDefHeight)
+                then begin
+                       Memo1.Lines.Add('                         PAPER='+PaperSizeToStr(False, pWidth, pHeight));
+                       Memo1.Lines.Add('                         PAPER DEFAULT='+PaperSizeToStr(False, pDefWidth, pDefHeight));
+                     end
+                else Memo1.Lines.Add('                         PAPER= <NO VALUES>');
               end;
             end;
           end;

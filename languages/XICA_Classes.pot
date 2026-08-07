@@ -9,6 +9,11 @@ msgstr ""
 msgid "Landscape"
 msgstr ""
 
+#: xica_classes.rsnoselecteditem
+#, object-pascal-format
+msgid "No Selected Item in Device %s"
+msgstr ""
+
 #: xica_classes.rsportrait
 msgid "Portrait"
 msgstr ""

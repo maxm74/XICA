@@ -80,14 +80,6 @@ type
     xicMICR_READER
   );
 
-  TXICA_Item = class(TNoRefCountObject)
-    Name: String;
-    Type_: TXICA_ItemTypes;
-    Category: TXICA_ItemCategory;
-  end;
-//  PXICA_Item = ^TXICA_Item;
-  TArrayXICA_Item = array of TXICA_Item;
-
   TXICA_DeviceType = (
     devTypeUnknown = 0,
     devTypeScanner,
@@ -162,12 +154,12 @@ type
     xdtBN,
     xdtGRAYSCALE,
     xdtCOLOR,
-    //xdtRAW_RGB,
-    //xdtRAW_BGR,
-    //xdtRAW_YUV,
-    //xdtRAW_YUVK,
-    //xdtRAW_CMY,
-    //xdtRAW_CMYK,
+    xdtRAW_RGB,
+    xdtRAW_BGR,
+    xdtRAW_YUV,
+    xdtRAW_YUVK,
+    xdtRAW_CMY,
+    xdtRAW_CMYK,
     xdtAUTO
   );
   TXICA_DataTypes = set of TXICA_DataType;
@@ -234,6 +226,7 @@ type
   );
   TXICA_PaperTypes = set of TXICA_PaperType;
 
+  // to-do : CONVERT TO OBJECTS for Examples Cameras have addition Params like Shutter Time\Aperture
   TXICA_Params = packed record
     NativeUI: Boolean;
     PaperType: TXICA_PaperType;
@@ -295,6 +288,16 @@ var
 
 function XICA_DeviceType(const ADeviceType: TXICA_DeviceType): String;
 
+function XICA_CopyCurrentValues(const Cap: TXICA_ParamsCapabilities;
+                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+function XICA_CopyDefaultValues(const Cap: TXICA_ParamsCapabilities;
+                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+
+procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;
+
+function FullPathToRelativePath(const ABasePath: String; out APath: String): Boolean;
 
 implementation
 
@@ -307,16 +310,9 @@ begin
   else Result:= 'Undefined ('+IntToStr(Integer(ADeviceType))+')';
 end;
 
-(*
-class operator TXICA_Item.Equal(a, b: TXICA_Item): Boolean;
-begin
-  Result:= (a.ItemCategory = b.ItemCategory) and (a.ItemType = b.ItemType); // and (a.Name = b.Name);
-end;
-*)
-
 function XICA_CopyCurrentValues(const Cap: TXICA_ParamsCapabilities;
-                                aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
 begin
   FillChar(Result, Sizeof(Result), 0);
   with Result do
@@ -334,8 +330,8 @@ begin
 end;
 
 function XICA_CopyDefaultValues(const Cap: TXICA_ParamsCapabilities;
-                                aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
+                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
+                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
 begin
   FillChar(Result, Sizeof(Result), 0);
   with Result do
@@ -350,6 +346,36 @@ begin
     HAlign:= aHAlign;
     VAlign:= aVAlign;
   end;
+end;
+
+procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;
+var
+   pPos, ppPos: Integer;
+
+begin
+  Ver:= 0;
+  VerSub:= 0;
+
+  try
+     pPos:= Pos('.', s);
+     if (pPos > 0) then
+     begin
+       Ver:= StrToInt(Copy(s, 0, pPos-1));
+       ppPos:= Pos('.', s, pPos+1);
+       if (ppPos > 0)
+       then VerSub:= StrToInt(Copy(s, pPos+1, ppPos-1))
+       else VerSub:= StrToInt(Copy(s, pPos+1, 255));
+     end;
+  except
+
+  end;
+end;
+
+function FullPathToRelativePath(const ABasePath: String; out APath: String): Boolean;
+begin
+  Result:= (Pos(ABasePath, APath) = 1);
+  if Result
+  then APath:= '.'+DirectorySeparator+Copy(APath, Length(ABasePath)+1, MaxInt);
 end;
 
 
