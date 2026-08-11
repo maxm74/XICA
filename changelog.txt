@@ -1,5 +1,9 @@
 XICA CHANGE LOG
 ======================
+2026/08/11 Changed Params/Capabilities to TObject;
+           Moved CopyCurrent/DefaultValues in Params Class;
+           Added Delphi TXMLConfig equivalent class;
+           Added Load/Save Params to XML file;
 
 2026/08/07 Clarified (more or less) the basic class structure;
            First version of the WIA manager;

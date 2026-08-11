@@ -30,7 +30,8 @@ package XICA_dpkg;
 {$IMPLICITBUILD ON}
 
 requires
-  rtl;
+  rtl,
+  xmlrtl;
 
 contains
   XICA_Classes in 'src\XICA_Classes.pas',
@@ -39,6 +40,7 @@ contains
   XICA in 'src\XICA.pas',
   XICA_WIA in 'src\wia\XICA_WIA.pas',
   MM_OpenArrayList in 'src\MM_OpenArrayList.pas',
-  DelphiCompatibility in 'src\DelphiCompatibility.pas';
+  DelphiCompatibility in 'src\DelphiCompatibility.pas',
+  DelphiXMLConfig in 'src\DelphiXMLConfig.pas';
 
 end.

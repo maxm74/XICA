@@ -28,7 +28,11 @@ type
 {$endif}
 const
   AllowDirectorySeparators : set of AnsiChar = ['\','/'];
-  DirectorySeparator = '\';
+  {$ifdef MSWINDOWS}
+    DirectorySeparator = '\';
+  {$else}
+    DirectorySeparator = '/';
+  {$endif}
 {$endif}
 
 implementation

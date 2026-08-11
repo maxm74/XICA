@@ -212,8 +212,10 @@ type
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
+    function GetType_Str: String; override;
+
   public
-    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String); override;
     destructor Destroy; override;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
@@ -300,8 +302,6 @@ procedure WIAPropertyFlags(const pFlags: ULONG; out AFlags: TWIAPropertyFlags); 
 procedure WIAPropertyFlags(const pFlags: ULONG; out AFlags: TXICA_PropertyFlags); overload;
 
 function XICA_PropertyFlags(const pFlags: TWIAPropertyFlags): TXICA_PropertyFlags;
-
-function WIADeviceType(const AWIADeviceType: Integer): String;
 
 function WIAImageFormat(const AGUID: TGUID; out Value: TXICA_ImageFormat): Boolean;
 
@@ -398,16 +398,6 @@ begin
   if (WIAProp_WRITE in pFlags) then Result:= Result+[prop_WRITE];
   if (WIAProp_RANGE in pFlags) then Result:= Result+[prop_RANGE];
   if (WIAProp_LIST in pFlags) then Result:= Result+[prop_LIST];
-end;
-
-function WIADeviceType(const AWIADeviceType: Integer): String;
-begin
-  if (AWIADeviceType >= Integer(Low(TXICA_DeviceType))) and
-     (AWIADeviceType <= Integer(High(TXICA_DeviceType)))
-  then Result:= XICA_DeviceType(TXICA_DeviceType(AWIADeviceType))
-  else if (AWIADeviceType = StiDeviceTypeStreamingVideo)
-       then Result:= 'Streaming Video'
-       else Result:= 'Undefined ('+IntToStr(AWIADeviceType)+')';
 end;
 
 function WIAImageFormat(const AGUID: TGUID; out Value: TXICA_ImageFormat): Boolean;
@@ -1772,6 +1762,15 @@ begin
 
     pIEnumItem:= nil;
   end;
+end;
+
+function TXICA_WiaDevice.GetType_Str: String;
+begin
+  if (rType in [devTypeUnknown..devTypeDigitalCamera])
+  then Result:= inherited GetType_Str
+  else if (Integer(rType) = StiDeviceTypeStreamingVideo)
+       then Result:= 'Streaming Video'
+       else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
 end;
 
 constructor TXICA_WiaDevice.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);

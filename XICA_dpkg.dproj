@@ -148,6 +148,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
+        <DCCReference Include="xmlrtl.dcp"/>
         <DCCReference Include="src\XICA_Classes.pas"/>
         <DCCReference Include="src\XICA_PaperSizes.pas"/>
         <DCCReference Include="src\XICA_Types.pas"/>
@@ -155,6 +156,7 @@
         <DCCReference Include="src\wia\XICA_WIA.pas"/>
         <DCCReference Include="src\MM_OpenArrayList.pas"/>
         <DCCReference Include="src\DelphiCompatibility.pas"/>
+        <DCCReference Include="src\DelphiXMLConfig.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

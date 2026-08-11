@@ -60,7 +60,7 @@ type
     rPaperVAlign: TXICA_AlignVertical;
 
     rParams: TXICA_Params;
-    rCapabilities: TXICA_ParamsCapabilities;
+    rCapabilities: TXICA_Capabilities;
 
     StreamDestination: TFileStream;
     StreamAdapter: TStreamAdapter;
@@ -77,6 +77,9 @@ type
 *)
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual; abstract;
+
+    class function ParamsClass: TXICA_ParamsClass; virtual;
+    class function CapabilitiesClass: TXICA_CapabilitiesClass; virtual;
 
   public
     Type_: TXICA_ItemTypes;
@@ -215,13 +218,22 @@ type
     //Set Current BitDepth, The user is responsible for checking the validity of the value
     function SetBitDepth(const Value: Integer): Boolean; virtual; abstract;
 
-    //Get Capabilities for Current Selected Item
-    function GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean; virtual;
+    //Get Capabilities for this Item
+    //  To avoid getting the capabilities from the device every time you access the property,
+    //  it is recommended to use a Local Variable and access the property only once.
+    function GetCapabilities: TXICA_Capabilities; virtual;
 
-    //Set Params to Current Selected Item
-    function SetParams(const AParams: TXICA_Params): Boolean; virtual;
+    //Get Params for this Item
+    //  This is YOUR Params
+    function GetParams: TXICA_Params; virtual;
+
+    //Set Params for this Item
+    procedure SetParams(const AParams: TXICA_Params); virtual;
 
     property Name: String read rName;
+
+    property Params: TXICA_Params read GetParams write SetParams;
+    property Capabilities: TXICA_Capabilities read GetCapabilities;
   end;
   PXICA_Item = ^TXICA_Item;
   TArrayXICA_Item = array of TXICA_Item;
@@ -230,7 +242,7 @@ type
 
   // UI Settings of Source Device
   TInitialItemValues = (initDefault, initParams, initCurrent);
-  TInitDefaultValuesEvent = procedure (var ACap: TXICA_ParamsCapabilities) of object;
+  TInitDefaultValuesEvent = procedure (var ACap: TXICA_Capabilities) of object;
 
   TXICA_SettingsDialogFunc = function (ADevice: TXICA_Device;
                                        var ASelectedItemIndex: Integer;
@@ -425,10 +437,13 @@ type
     function SetBitDepth(const Value: Integer): Boolean; virtual;
 
     //Get Capabilities for Current Selected Item
-    function GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean; virtual;
+    function GetCapabilities: TXICA_Capabilities; virtual;
 
-    //Set Params to Current Selected Item
-    function SetParams(const AParams: TXICA_Params): Boolean; virtual;
+    //Get Params for Current Selected Item
+    function GetParams: TXICA_Params; virtual;
+
+    //Set Params for Current Selected Item
+    procedure SetParams(const AParams: TXICA_Params); virtual;
 
     //Display a dialog to let the user choose Settings of the Device
     function SettingsDeviceDialog(var ASelectedItemIndex: Integer;
@@ -447,6 +462,9 @@ type
     //Version and SubVersion of Device
     property Version: Integer read rVersion write rVersion;
     property VersionSub: Integer read rVersionSub write rVersionSub;
+
+    property Params: TXICA_Params read GetParams write SetParams;
+    property Capabilities: TXICA_Capabilities read GetCapabilities;
 
     //Events
     property OnBeforeDeviceTransfer: TXICA_OnDeviceTransfer read rOnBeforeDeviceTransfer write rOnBeforeDeviceTransfer;
@@ -537,6 +555,16 @@ end;
 
 { TXICA_Item }
 
+class function TXICA_Item.ParamsClass: TXICA_ParamsClass;
+begin
+  Result:= TXICA_Params;
+end;
+
+class function TXICA_Item.CapabilitiesClass: TXICA_CapabilitiesClass;
+begin
+  Result:= TXICA_Capabilities;
+end;
+
 constructor TXICA_Item.Create(AOwner: TXICA_Device; AIndex: Integer; AName: String);
 begin
   inherited Create;
@@ -544,6 +572,9 @@ begin
   rOwner:= AOwner;
   rIndex:= AIndex;
   rName:= AName;
+
+  rParams:= nil;
+  rCapabilities:= nil;
 
   StreamAdapter:= nil;
   StreamDestination:= nil;
@@ -564,6 +595,9 @@ end;
 
 destructor TXICA_Item.Destroy;
 begin
+  if (rParams <> nil) then rParams.Free;
+  if (rCapabilities <> nil) then rCapabilities.Free;
+
   inherited Destroy;
 end;
 
@@ -975,59 +1009,86 @@ begin
   Result:= True;
 end;
 
-function TXICA_Item.GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean;
+function TXICA_Item.GetCapabilities: TXICA_Capabilities;
 var
    pFlags: TXICA_PropertyFlags;
+   Res: Boolean;
 
 begin
-  Result:= False;
-  FillChar(Value, SizeOf(TXICA_ParamsCapabilities), 0);
+  if (rCapabilities = nil) then
+  try
+    rCapabilities:= CapabilitiesClass.Create;
 
-  with Value do
+  except
+    if (rCapabilities <> nil) then rCapabilities.Free;
+    rCapabilities:= nil;
+  end;
+
+  if (rCapabilities <> nil) then
+  with rCapabilities do
   begin
     if (Category <> xicAUTO) then
     begin
-      Result:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
-      //if not(Result) then raise Exception.Create('GetPaperSizeMax');
+      Res:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
+      //if not(Res) then raise Exception.Create('GetPaperSizeMax');
 
-      Result:= GetPaperType(PaperTypeCurrent, PaperTypeDefault, PaperTypeSet);
-      //if not(Result) then raise Exception.Create('GetPaperType');
+      Res:= GetPaperType(PaperTypeCurrent, PaperTypeDefault, PaperTypeSet);
+      //if not(Res) then raise Exception.Create('GetPaperType');
 
-      Result:= GetRotation(RotationCurrent, RotationDefault, RotationSet);
-      //if not(Result) then raise Exception.Create('GetRotation');
+      Res:= GetRotation(RotationCurrent, RotationDefault, RotationSet);
+      //if not(Res) then raise Exception.Create('GetRotation');
 
       pFlags:= GetResolutionsX(ResolutionCurrent, ResolutionDefault, ResolutionArray);
-      Result:= (prop_READ in pFlags);
-      //if not(Result) then raise Exception.Create('GetResolutionsX');
+      Res:= (prop_READ in pFlags);
+      //if not(Res) then raise Exception.Create('GetResolutionsX');
       ResolutionRange:= prop_RANGE in pFlags;
 
-      Result:= GetBrightness(BrightnessCurrent, BrightnessDefault, BrightnessMin, BrightnessMax, BrightnessStep);
-      //if not(Result) then raise Exception.Create('GetBrightness');
+      Res:= GetBrightness(BrightnessCurrent, BrightnessDefault, BrightnessMin, BrightnessMax, BrightnessStep);
+      //if not(Res) then raise Exception.Create('GetBrightness');
 
-      Result:= GetContrast(ContrastCurrent, ContrastDefault, ContrastMin, ContrastMax, ContrastStep);
-      //if not(Result) then raise Exception.Create('GetContrast');
+      Res:= GetContrast(ContrastCurrent, ContrastDefault, ContrastMin, ContrastMax, ContrastStep);
+      //if not(Res) then raise Exception.Create('GetContrast');
 
       (*
       pFlags:= GetBitDepth(BitDepthCurrent, BitDepthDefault, BitDepthArray);
-      Result:= (WIAProp_READ in pFlags);
-      if not(Result) then exit;
+      Res:= (WIAProp_READ in pFlags);
+      if not(Res) then exit;
       *)
 
-      Result:= GetDataType(DataTypeCurrent, DataTypeDefault, DataTypeSet);
-      //if not(Result) then raise Exception.Create('GetDataType');
+      Res:= GetDataType(DataTypeCurrent, DataTypeDefault, DataTypeSet);
+      //if not(Res) then raise Exception.Create('GetDataType');
 
-      Result:= GetDocumentHandling(DocHandlingCurrent, DocHandlingDefault, DocHandlingSet);
-      //if not(Result) then exit;
+      Res:= GetDocumentHandling(DocHandlingCurrent, DocHandlingDefault, DocHandlingSet);
+      //if not(Res) then exit;
     end;
   end;
 
-  Result:= True;
+  Result:= rCapabilities;
 end;
 
-function TXICA_Item.SetParams(const AParams: TXICA_Params): Boolean;
+function TXICA_Item.GetParams: TXICA_Params;
+begin
+  if (rParams = nil) then
+  try
+    rParams:= ParamsClass.Create;
+    rParams.CopyFromCapabilitiesCurrentValues(Capabilities, rPaperHAlign, rPaperVAlign);
+
+  except
+    if (rParams <> nil) then rParams.Free;
+    rParams:= nil;
+  end;
+
+  Result:= rParams;
+end;
+
+procedure TXICA_Item.SetParams(const AParams: TXICA_Params);
+var
+   Result: Boolean;
+
 begin
   Result:= False;
 
+  if (AParams <> nil) then
   with AParams do
   begin
     if (Category <> xicAUTO) then
@@ -1060,8 +1121,10 @@ begin
       Result:= SetDataType(DataType);
       //if not(Result) then raise Exception.Create('SetDataType');
     end
-    else Result:= True;
+    else Result:= False;
   end;
+
+  if Result then Params.Assign(AParams);
 end;
 
 
@@ -1106,7 +1169,9 @@ end;
 
 function TXICA_Device.GetType_Str: String;
 begin
-  Result:= XICA_DeviceType(rType);
+  if (rType in [Low(TXICA_DeviceType)..High(TXICA_DeviceType)])
+  then Result:= XICA_DeviceTypeDescr[rType]
+  else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
 end;
 
 constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
@@ -1422,15 +1487,21 @@ begin
   else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.GetParamsCapabilities(out Value: TXICA_ParamsCapabilities): Boolean;
+function TXICA_Device.GetCapabilities: TXICA_Capabilities;
 begin
-  if (Selected <> nil) then Result:= Selected^.GetParamsCapabilities(Value)
+  if (Selected <> nil) then Result:= Selected^.GetCapabilities
   else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.SetParams(const AParams: TXICA_Params): Boolean;
+function TXICA_Device.GetParams: TXICA_Params;
 begin
-  if (Selected <> nil) then Result:= Selected^.SetParams(AParams)
+  if (Selected <> nil) then Result:= Selected^.GetParams
+  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+end;
+
+procedure TXICA_Device.SetParams(const AParams: TXICA_Params);
+begin
+  if (Selected <> nil) then Selected^.SetParams(AParams)
   else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
 end;
 

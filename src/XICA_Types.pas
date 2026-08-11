@@ -24,6 +24,9 @@ unit XICA_Types;
 
 interface
 
+uses Classes,
+     {$ifdef fpc}Laz2_XMLCfg{$else}DelphiCompatibility, DelphiXMLConfig{$endif};
+
 type
   //Dinamic Array types
   TArraySingle = array of Single;
@@ -226,8 +229,17 @@ type
   );
   TXICA_PaperTypes = set of TXICA_PaperType;
 
-  // to-do : CONVERT TO OBJECTS for Examples Cameras have addition Params like Shutter Time\Aperture
-  TXICA_Params = packed record
+  // Params and Capabilities is TObject because for Examples Cameras have addition Params like Shutter Time\Aperture
+  //   override TXICA_Item.ParamsClass and CapabilitiesClass methods to assign your classes
+  TXICA_Capabilities = class;
+
+  { TXICA_Params }
+
+  TXICA_Params = class(TPersistent)
+  protected
+    procedure AssignTo(Dest: TPersistent); override;
+
+  public
     NativeUI: Boolean;
     PaperType: TXICA_PaperType;
 
@@ -244,10 +256,28 @@ type
     Brightness: Integer;
     DataType: TXICA_DataType;
     DocHandling: TXICA_DocumentHandlings;
+
+    procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities); overload; virtual;
+    procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities;
+                                                const aHAlign: TXICA_AlignHorizontal;
+                                                const aVAlign: TXICA_AlignVertical); overload; virtual;
+
+    procedure CopyFromCapabilitiesCurrentValues(const ACapabilities: TXICA_Capabilities); overload; virtual;
+    procedure CopyFromCapabilitiesCurrentValues(const ACapabilities: TXICA_Capabilities;
+                                                const aHAlign: TXICA_AlignHorizontal;
+                                                const aVAlign: TXICA_AlignVertical); overload; virtual;
+
+    function Load(const xml_File, xml_RootPath: String): Boolean; overload;
+    function Load(const XMLWork: TXMLConfig; xml_RootPath: String): Boolean; overload; virtual;
+
+    function Save(const xml_File, xml_RootPath: String): Boolean; overload;
+    function Save(const XMLWork: TXMLConfig; xml_RootPath: String): Boolean; overload; virtual;
   end;
   TArrayXICA_Params = array of TXICA_Params;
+  TXICA_ParamsClass = class of TXICA_Params;
 
-  TXICA_ParamsCapabilities = packed record
+  TXICA_Capabilities = class(TPersistent)
+  public
     PaperSizeMaxWidth,
     PaperSizeMaxHeight: Single;
     PaperTypeSet: TXICA_PaperTypes;
@@ -278,75 +308,22 @@ type
     DataTypeSet: TXICA_DataTypes;
     DocHandlingCurrent,
     DocHandlingDefault,
-    DocHandlingSet: TXICA_DocumentHandlings; { #todo 5 -oMaxM : Must be tested in a Duplex Scanner }
+    DocHandlingSet: TXICA_DocumentHandlings;
   end;
-  TArrayXICA_ParamsCapabilities = array of TXICA_ParamsCapabilities;
+  TXICA_CapabilitiesClass = class of TXICA_Capabilities;
+
 
 var
-  XICA_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
+  XICA_UI_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
 
-
-function XICA_DeviceType(const ADeviceType: TXICA_DeviceType): String;
-
-function XICA_CopyCurrentValues(const Cap: TXICA_ParamsCapabilities;
-                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
-function XICA_CopyDefaultValues(const Cap: TXICA_ParamsCapabilities;
-                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
 
 procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;
 
-function FullPathToRelativePath(const ABasePath: String; out APath: String): Boolean;
+function FullPathToRelativePath(const ABasePath: String; var APath: String): Boolean;
 
 implementation
 
 uses SysUtils;
-
-function XICA_DeviceType(const ADeviceType: TXICA_DeviceType): String;
-begin
-  if (ADeviceType in [Low(TXICA_DeviceType)..High(TXICA_DeviceType)])
-  then Result:= XICA_DeviceTypeDescr[ADeviceType]
-  else Result:= 'Undefined ('+IntToStr(Integer(ADeviceType))+')';
-end;
-
-function XICA_CopyCurrentValues(const Cap: TXICA_ParamsCapabilities;
-                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
-begin
-  FillChar(Result, Sizeof(Result), 0);
-  with Result do
-  begin
-    PaperType:= Cap.PaperTypeCurrent;
-    Resolution:= Cap.ResolutionCurrent;
-    Contrast:= Cap.ContrastCurrent;
-    Brightness:= Cap.BrightnessCurrent;
-    DocHandling:= Cap.DocHandlingCurrent;
-    //BitDepth:= Cap.BitDepthCurrent;
-    DataType:= Cap.DataTypeCurrent;
-    HAlign:= aHAlign;
-    VAlign:= aVAlign;
-  end;
-end;
-
-function XICA_CopyDefaultValues(const Cap: TXICA_ParamsCapabilities;
-                                const aHAlign: TXICA_AlignHorizontal=xaHLeft;
-                                const aVAlign: TXICA_AlignVertical=xaVTop): TXICA_Params;
-begin
-  FillChar(Result, Sizeof(Result), 0);
-  with Result do
-  begin
-    PaperType:= Cap.PaperTypeDefault;
-    Resolution:= Cap.ResolutionDefault;
-    Contrast:= Cap.ContrastDefault;
-    Brightness:= Cap.BrightnessDefault;
-    DocHandling:= Cap.DocHandlingDefault;
-    //BitDepth:= Cap.BitDepthDefault;
-    DataType:= Cap.DataTypeDefault;
-    HAlign:= aHAlign;
-    VAlign:= aVAlign;
-  end;
-end;
 
 procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;
 var
@@ -371,13 +348,167 @@ begin
   end;
 end;
 
-function FullPathToRelativePath(const ABasePath: String; out APath: String): Boolean;
+function FullPathToRelativePath(const ABasePath: String; var APath: String): Boolean;
 begin
   Result:= (Pos(ABasePath, APath) = 1);
   if Result
   then APath:= '.'+DirectorySeparator+Copy(APath, Length(ABasePath)+1, MaxInt);
 end;
 
+{ TXICA_Params }
+
+procedure TXICA_Params.AssignTo(Dest: TPersistent);
+begin
+  if (Dest <> nil) then
+  with Dest do
+  begin
+    NativeUI:= Self.NativeUI;
+    PaperType:= Self.PaperType;
+
+    PaperW:= Self.PaperW;
+    PaperH:= Self.PaperH;
+
+    Rotation:= Self.Rotation;
+    HAlign:= Self.HAlign;
+    VAlign:= Self.VAlign;
+    Resolution:= Self.Resolution;
+    Contrast:= Self.Contrast;
+    //BitDepth:= Self.BitDepth;
+    Brightness:= Self.Brightness;
+    DataType:= Self.DataType;
+    DocHandling:= Self.DocHandling;
+  end;
+end;
+
+procedure TXICA_Params.CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities);
+begin
+  if (ACapabilities <> nil) then
+  with ACapabilities do
+  begin
+    PaperType:= PaperTypeDefault;
+    Resolution:= ResolutionDefault;
+    Contrast:= ContrastDefault;
+    Brightness:= BrightnessDefault;
+    DocHandling:= DocHandlingDefault;
+    //BitDepth:= BitDepthDefault;
+    DataType:= DataTypeDefault;
+  end;
+end;
+
+procedure TXICA_Params.CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities;
+                                                         const aHAlign: TXICA_AlignHorizontal; const aVAlign: TXICA_AlignVertical);
+begin
+  CopyFromCapabilitiesDefaultValues(ACapabilities);
+  HAlign:= aHAlign;
+  VAlign:= aVAlign;
+end;
+
+procedure TXICA_Params.CopyFromCapabilitiesCurrentValues(const ACapabilities: TXICA_Capabilities);
+begin
+  if (ACapabilities <> nil) then
+  with ACapabilities do
+  begin
+    PaperType:= PaperTypeCurrent;
+    Resolution:= ResolutionCurrent;
+    Contrast:= ContrastCurrent;
+    Brightness:= BrightnessCurrent;
+    DocHandling:= DocHandlingCurrent;
+    //BitDepth:= BitDepthCurrent;
+    DataType:= DataTypeCurrent;
+  end;
+end;
+
+procedure TXICA_Params.CopyFromCapabilitiesCurrentValues(const ACapabilities: TXICA_Capabilities;
+                                                         const aHAlign: TXICA_AlignHorizontal; const aVAlign: TXICA_AlignVertical);
+begin
+  CopyFromCapabilitiesCurrentValues(ACapabilities);
+  HAlign:= aHAlign;
+  VAlign:= aVAlign;
+end;
+
+function TXICA_Params.Load(const xml_File, xml_RootPath: String): Boolean;
+var
+   XMLWork: TXMLConfig;
+
+begin
+  try
+     Result:= False;
+     XMLWork:= TXMLConfig.Create(xml_File);
+     Result:= Load(XMLWork, xml_RootPath);
+
+  finally
+    XMLWork.Free;
+  end;
+end;
+
+function TXICA_Params.Load(const XMLWork: TXMLConfig; xml_RootPath: String): Boolean;
+var
+   curItemPath: String;
+
+begin
+  Result:= False;
+
+  curItemPath:= xml_RootPath;
+  if (curItemPath[Length(curItemPath)] <> '/') then curItemPath:= curItemPath+'/';
+
+  NativeUI:= XMLWork.GetValue(curItemPath+'NativeUI', False);
+  XMLWork.GetValue(curItemPath+'PaperType', PaperType, TypeInfo(TXICA_PaperType));
+  PaperW:= StrToFloat(XMLWork.GetValue(curItemPath+'PaperW', '0'));
+  PaperH:= StrToFloat(XMLWork.GetValue(curItemPath+'PaperH', '0'));
+  XMLWork.GetValue(curItemPath+'Rotation', Rotation, TypeInfo(TXICA_Rotation));
+  XMLWork.GetValue(curItemPath+'HAlign', HAlign, TypeInfo(TXICA_AlignHorizontal));
+  XMLWork.GetValue(curItemPath+'VAlign', VAlign, TypeInfo(TXICA_AlignVertical));
+  Resolution:= XMLWork.GetValue(curItemPath+'Resolution', 100);
+  Contrast:= XMLWork.GetValue(curItemPath+'Contrast', 0);
+  Brightness:= XMLWork.GetValue(curItemPath+'Brightness', 0);
+  XMLWork.GetValue(curItemPath+'DataType', DataType, TypeInfo(TXICA_DataType));
+  XMLWork.GetValue(curItemPath+'DocHandling', DocHandling, TypeInfo(TXICA_DocumentHandlings));
+
+  Result:= True;
+end;
+
+function TXICA_Params.Save(const xml_File, xml_RootPath: String): Boolean;
+var
+   XMLWork: TXMLConfig;
+
+begin
+  try
+     Result:= False;
+     XMLWork:= TXMLConfig.Create(xml_File);
+     Result:= Save(XMLWork, xml_RootPath);
+
+  finally
+    XMLWork.Free;
+  end;
+end;
+
+function TXICA_Params.Save(const XMLWork: TXMLConfig; xml_RootPath: String): Boolean;
+var
+   curItemPath: String;
+
+begin
+  Result:= False;
+
+  curItemPath:= xml_RootPath;
+  if (curItemPath[Length(curItemPath)] <> '/') then curItemPath:= curItemPath+'/';
+
+  XMLWork.SetValue(curItemPath+'NativeUI', NativeUI);
+  XMLWork.SetValue(curItemPath+'PaperType', PaperType, TypeInfo(TXICA_PaperType));
+  XMLWork.SetValue(curItemPath+'PaperW', FloatToStr(PaperW));
+  XMLWork.SetValue(curItemPath+'PaperH',  FloatToStr(PaperH));
+  XMLWork.SetValue(curItemPath+'Rotation', Rotation, TypeInfo(TXICA_Rotation));
+  XMLWork.SetValue(curItemPath+'HAlign', HAlign, TypeInfo(TXICA_AlignHorizontal));
+  XMLWork.SetValue(curItemPath+'VAlign', VAlign, TypeInfo(TXICA_AlignVertical));
+  XMLWork.SetValue(curItemPath+'Resolution', Resolution);
+  XMLWork.SetValue(curItemPath+'Contrast', Contrast);
+  XMLWork.SetValue(curItemPath+'Brightness', Brightness);
+  XMLWork.SetValue(curItemPath+'DataType', DataType, TypeInfo(TXICA_DataType));
+  XMLWork.SetValue(curItemPath+'DocHandling', DocHandling, TypeInfo(TXICA_DocumentHandlings));
+
+  XMLWork.Flush;
+
+  Result:= True;
+end;
 
 
 end.
