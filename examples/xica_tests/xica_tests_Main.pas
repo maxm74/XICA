@@ -5,8 +5,8 @@ unit xica_tests_Main;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
+  ExtCtrls, XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA;
 
 type
 
@@ -14,7 +14,18 @@ type
 
   TXICATests = class(TForm)
     btListDevices: TButton;
+    btDownload: TButton;
+    edItem: TSpinEdit;
+    edManager: TSpinEdit;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
     Memo1: TMemo;
+    edDevice: TSpinEdit;
+    panDownload: TPanel;
+    edRes: TSpinEdit;
+    procedure btDownloadClick(Sender: TObject);
     procedure btListDevicesClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -110,7 +121,38 @@ begin
         end;
       end;
     end;
+
+    panDownload.Enabled:= (mCount>0) and (dCount>0);
+    edManager.MaxValue:= mCount-1;
+    edDevice.MaxValue:= dCount-1;
   end;
+end;
+
+procedure TXICATests.btDownloadClick(Sender: TObject);
+var
+   c: Integer;
+   curManager: TXICA_DeviceManager;
+   curDevice: TXICA_Device;
+   curItem: TXICA_Item;
+   curNameM, curNameD, curNameI: String;
+
+begin
+   XICA_Manager.Get(edManager.Value, curManager, curNameM);
+   if (curManager <> nil) then
+   begin
+     curManager.Get(edDevice.Value, curDevice, curNameD);
+     if (curDevice <> nil) then
+     begin
+       curDevice.Get(edItem.Value, curItem, curNameI);
+       if (curItem <> nil) then
+       begin
+         Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
+         curItem.SetResolution(edRes.Value, edRes.Value);
+         c:= curItem.Download('', 'xica_test', '.bmp', xifBMP);
+         Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
+       end;
+     end;
+   end;
 end;
 
 end.

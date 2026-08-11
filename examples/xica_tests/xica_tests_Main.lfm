@@ -1,10 +1,10 @@
 object XICATests: TXICATests
   Left = 344
-  Height = 393
+  Height = 435
   Top = 250
   Width = 661
   Caption = 'XICA Internal Tests'
-  ClientHeight = 393
+  ClientHeight = 435
   ClientWidth = 661
   LCLVersion = '4.99.0.0'
   OnCreate = FormCreate
@@ -21,10 +21,88 @@ object XICATests: TXICATests
   object Memo1: TMemo
     Left = 0
     Height = 343
-    Top = 50
+    Top = 92
     Width = 661
     Align = alBottom
     ScrollBars = ssAutoBoth
     TabOrder = 1
+  end
+  object edDevice: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 25
+    Width = 50
+    TabOrder = 2
+  end
+  object panDownload: TPanel
+    Left = 281
+    Height = 44
+    Top = 4
+    Width = 378
+    ClientHeight = 44
+    ClientWidth = 378
+    TabOrder = 3
+    object edRes: TSpinEdit
+      Left = 72
+      Height = 23
+      Top = 0
+      Width = 74
+      MaxValue = 600
+      MinValue = 100
+      TabOrder = 0
+      Value = 150
+    end
+    object Label1: TLabel
+      Left = 8
+      Height = 15
+      Top = 0
+      Width = 56
+      Caption = 'Resolution'
+    end
+    object btDownload: TButton
+      Left = 152
+      Height = 25
+      Top = 0
+      Width = 75
+      Caption = 'Download'
+      TabOrder = 1
+      OnClick = btDownloadClick
+    end
+  end
+  object Label2: TLabel
+    Left = 168
+    Height = 15
+    Top = 32
+    Width = 35
+    Caption = 'Device'
+  end
+  object Label3: TLabel
+    Left = 156
+    Height = 15
+    Top = 4
+    Width = 47
+    Caption = 'Manager'
+  end
+  object edManager: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 0
+    Width = 50
+    TabOrder = 4
+  end
+  object Label4: TLabel
+    Left = 176
+    Height = 15
+    Top = 60
+    Width = 24
+    Caption = 'Item'
+  end
+  object edItem: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 53
+    Width = 50
+    MaxValue = 2
+    TabOrder = 5
   end
 end
