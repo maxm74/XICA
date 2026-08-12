@@ -1,5 +1,9 @@
 XICA CHANGE LOG
 ======================
+2026/08/12 First Write of UI Select Dialog Functions and Form;
+           Added TXICA_Manager.Refresh method;
+           Added Owner and Index properties to classes;
+
 2026/08/11 Changed Params/Capabilities to TObject;
            Moved CopyCurrent/DefaultValues in Params Class;
            Added Delphi TXMLConfig equivalent class;

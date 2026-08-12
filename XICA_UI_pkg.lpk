@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="XICA_UI_pkg"/>
+    <Type Value="RunTimeOnly"/>
+    <Author Value="Massimo Magnano"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="src;src\wia;src\ui"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(BuildMode)"/>
+      </SearchPaths>
+      <CodeGeneration>
+        <Optimizations>
+          <OptimizationLevel Value="0"/>
+        </Optimizations>
+      </CodeGeneration>
+    </CompilerOptions>
+    <Description Value="XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi"/>
+    <License Value="GPL 3.0"/>
+    <Version Release="1"/>
+    <Files>
+      <Item>
+        <Filename Value="src\ui\XICA_SelectForm.pas"/>
+        <UnitName Value="XICA_SelectForm"/>
+      </Item>
+    </Files>
+    <i18n>
+      <EnableI18N Value="True"/>
+      <OutDir Value="languages"/>
+      <EnableI18NForLFM Value="True"/>
+    </i18n>
+    <RequiredPkgs>
+      <Item>
+        <PackageName Value="LCL"/>
+      </Item>
+      <Item>
+        <PackageName Value="XICA_pkg"/>
+      </Item>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

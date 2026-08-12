@@ -1,20 +1,20 @@
-(****************************************************************************
-*                XICA (Cross-platform Image Capture Architecture)
-*
-*  FILE: XICA_WIA.pas
-*
-*  VERSION:     0.0.1
-*
-*  DESCRIPTION:
-*    WIA implementation
-*
-*****************************************************************************
-*
-*  (c) 2026 Massimo Magnano
-*
-*  See changelog.txt for Change Log
-*
-*****************************************************************************)
+(*******************************************************************************
+*                XICA (Cross-platform Image Capture Architecture)              *
+*                                                                              *
+*  FILE: XICA_WIA.pas                                                          *
+*                                                                              *
+*  VERSION:     0.0.1                                                          *
+*                                                                              *
+*  DESCRIPTION:                                                                *
+*    WIA implementation                                                        *
+*                                                                              *
+********************************************************************************
+*                                                                              *
+*  (c) 2026 Massimo Magnano                                                    *
+*                                                                              *
+*  See changelog.txt for Change Log                                            *
+*                                                                              *
+*******************************************************************************)
 unit XICA_WIA;
 
 {$ifdef fpc}
@@ -30,7 +30,7 @@ interface
 
 uses Windows, Classes, SysUtils,
     {$ifdef fpc}testutils,{$else}DelphiCompatibility,{$endif}
-     ComObj, ActiveX, WiaDef, WIA_LH, //Wia_PaperSizes
+     ComObj, ActiveX, WiaDef, WIA_LH,
      XICA_Types, XICA_Classes;
 
 type
@@ -69,7 +69,6 @@ type
                            out ppDestination: IStream): HRESULT; stdcall;
 
     destructor Destroy; override;
-
 
     //Download the Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
@@ -215,7 +214,7 @@ type
     function GetType_Str: String; override;
 
   public
-    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String); override;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); override;
     destructor Destroy; override;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
@@ -242,11 +241,12 @@ type
     //Enumerate the avaliable devices
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; override;
 
-    class function SelectDialogFunc: TXICA_SelectDialogFunc; override;
-
   public
-    constructor Create(AEnumAll: Boolean = True);
+    constructor Create(const AEnumAll: Boolean = True); override;
     destructor Destroy; override;
+
+    //Is the library loaded?
+    function Enabled: Boolean; override;
 
     class function Name: String; override;
   end;
@@ -1773,7 +1773,7 @@ begin
        else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
 end;
 
-constructor TXICA_WiaDevice.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+constructor TXICA_WiaDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 
@@ -1993,18 +1993,11 @@ begin
   end;
 end;
 
-class function TXICA_WIAManager.SelectDialogFunc: TXICA_SelectDialogFunc;
+constructor TXICA_WIAManager.Create(const AEnumAll: Boolean = True);
 begin
+  inherited Create(AEnumAll);
 
-end;
-
-constructor TXICA_WIAManager.Create(AEnumAll: Boolean);
-begin
-  inherited Create;
-
-  HasEnumerated:= False;
-  pDevMgr:= nil;
-  rEnumAll:= AEnumAll;
+  pDevMgr:= WIA_LH.IWiaDevMgr2(CreateDevManager);
 end;
 
 destructor TXICA_WIAManager.Destroy;
@@ -2012,6 +2005,12 @@ begin
   inherited Destroy;
 
   if (pDevMgr<>nil) then pDevMgr :=nil; //Free the Interface
+end;
+
+function TXICA_WIAManager.Enabled: Boolean;
+begin
+  if (pDevMgr = nil) then pDevMgr:= WIA_LH.IWiaDevMgr2(CreateDevManager);
+  Result:= (pDevMgr <> nil);
 end;
 
 class function TXICA_WIAManager.Name: String;

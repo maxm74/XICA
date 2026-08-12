@@ -105,4 +105,13 @@ object XICATests: TXICATests
     MaxValue = 2
     TabOrder = 5
   end
+  object btUI_Select: TButton
+    Left = 8
+    Height = 25
+    Top = 40
+    Width = 75
+    Caption = 'UI Select'
+    TabOrder = 6
+    OnClick = btUI_SelectClick
+  end
 end

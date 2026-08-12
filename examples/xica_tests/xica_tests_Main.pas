@@ -6,7 +6,8 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
-  ExtCtrls, XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA;
+  ExtCtrls, XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA,
+  XICA_SelectForm;
 
 type
 
@@ -15,6 +16,7 @@ type
   TXICATests = class(TForm)
     btListDevices: TButton;
     btDownload: TButton;
+    btUI_Select: TButton;
     edItem: TSpinEdit;
     edManager: TSpinEdit;
     Label1: TLabel;
@@ -27,6 +29,7 @@ type
     edRes: TSpinEdit;
     procedure btDownloadClick(Sender: TObject);
     procedure btListDevicesClick(Sender: TObject);
+    procedure btUI_SelectClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
@@ -125,6 +128,21 @@ begin
     panDownload.Enabled:= (mCount>0) and (dCount>0);
     edManager.MaxValue:= mCount-1;
     edDevice.MaxValue:= dCount-1;
+  end;
+end;
+
+procedure TXICATests.btUI_SelectClick(Sender: TObject);
+var
+   selDevice: TXICA_Device;
+
+begin
+  selDevice:= XICA_Manager.SelectDeviceDialog;
+  if (selDevice <> nil) then
+  begin
+    edManager.Value:= XICA_Manager.Find(selDevice.Owner);
+    edDevice.Value:= selDevice.Index;
+    edItem.MaxValue:= selDevice.Count-1;       //to-do Get in List may Enumerate Items
+    edItem.Value:= selDevice.SelectedIndex;
   end;
 end;
 

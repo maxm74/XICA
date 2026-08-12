@@ -1,13 +1,13 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{45E41863-EA3B-41E8-ADFC-C86AF19F6D6A}</ProjectGuid>
-        <MainSource>XICA_dpkg.dpk</MainSource>
+        <ProjectGuid>{45E41863-EA3B-41E8-ADFC-C86AF19F6D6B}</ProjectGuid>
+        <MainSource>XICA_UI_dpkg.dpk</MainSource>
         <ProjectVersion>20.1</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
-        <ProjectName Condition="'$(ProjectName)'==''">XICA_dpkg</ProjectName>
+        <ProjectName Condition="'$(ProjectName)'==''">XICA_UI_dpkg</ProjectName>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Package</AppType>
     </PropertyGroup>
@@ -86,9 +86,8 @@
         <VerInfo_Release>1</VerInfo_Release>
         <DCC_Description>XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi</DCC_Description>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
-        <SanitizedProjectName>XICA_dpkg</SanitizedProjectName>
-        <DCC_UnitSearchPath>.\src\;.\src\wia\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
-        <DCC_DcpOutput>.\lib\$(Platform)\$(Config)</DCC_DcpOutput>
+        <SanitizedProjectName>XICA_UI_dpkg</SanitizedProjectName>
+        <DCC_UnitSearchPath>.\src\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
@@ -149,15 +148,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
-        <DCCReference Include="xmlrtl.dcp"/>
-        <DCCReference Include="src\XICA_Classes.pas"/>
-        <DCCReference Include="src\XICA_PaperSizes.pas"/>
-        <DCCReference Include="src\XICA_Types.pas"/>
-        <DCCReference Include="src\XICA.pas"/>
-        <DCCReference Include="src\wia\XICA_WIA.pas"/>
-        <DCCReference Include="src\MM_OpenArrayList.pas"/>
-        <DCCReference Include="src\DelphiCompatibility.pas"/>
-        <DCCReference Include="src\DelphiXMLConfig.pas"/>
+        <DCCReference Include="XICA_dpkg.dcp"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -180,7 +171,7 @@
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp290.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
                 <Source>
-                    <Source Name="MainSource">XICA_dpkg.dpk</Source>
+                    <Source Name="MainSource">XICA_UI_dpkg.dpk</Source>
                 </Source>
             </Delphi.Personality>
             <Deployment Version="4">
@@ -199,15 +190,15 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\Win64\XICA_dpkg.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\Win64\XICA_UI_dpkg.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
-                        <RemoteName>XICA_dpkg.bpl</RemoteName>
+                        <RemoteName>XICA_UI_dpkg.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\XICA_dpkg.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\XICA_UI_dpkg.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>XICA_dpkg.bpl</RemoteName>
+                        <RemoteName>XICA_UI_dpkg.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

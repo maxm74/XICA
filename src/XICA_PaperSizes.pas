@@ -1,20 +1,20 @@
-(****************************************************************************
-*                XICA (Cross-platform Image Capture Architecture)
-*
-*  FILE: XICA_PaperSizes.pas
-*
-*  VERSION:     0.0.1
-*
-*  DESCRIPTION:
-*    Paper Sizes Types and Consts in cm/inch
-*
-*****************************************************************************
-*
-*  (c) 2026 Massimo Magnano
-*
-*  See changelog.txt for Change Log
-*
-*****************************************************************************)
+(*******************************************************************************
+*                XICA (Cross-platform Image Capture Architecture)              *
+*                                                                              *
+*  FILE: XICA_PaperSizes.pas                                                   *
+*                                                                              *
+*  VERSION:     0.0.1                                                          *
+*                                                                              *
+*  DESCRIPTION:                                                                *
+*    Paper Sizes Types and Consts in cm/inch                                   *
+*                                                                              *
+********************************************************************************
+*                                                                              *
+*  (c) 2026 Massimo Magnano                                                    *
+*                                                                              *
+*  See changelog.txt for Change Log                                            *
+*                                                                              *
+*******************************************************************************)
 unit XICA_PaperSizes;
 
 {$H+}

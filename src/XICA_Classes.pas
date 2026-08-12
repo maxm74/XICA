@@ -1,21 +1,21 @@
-(****************************************************************************
-*                XICA (Cross-platform Image Capture Architecture)
-*
-*  FILE: XICA_Classes.pas
-*
-*  VERSION:     0.0.1
-*
-*  DESCRIPTION:
-*    Base Manager and Device Classes,
-*      the various image acquisition libraries must derive from these classes
-*
-*****************************************************************************
-*
-*  (c) 2026 Massimo Magnano
-*
-*  See changelog.txt for Change Log
-*
-*****************************************************************************)
+(*******************************************************************************
+*                XICA (Cross-platform Image Capture Architecture)              *
+*                                                                              *
+*  FILE: XICA_Classes.pas                                                      *
+*                                                                              *
+*  VERSION:     0.0.1                                                          *
+*                                                                              *
+*  DESCRIPTION:                                                                *
+*    Base Manager and Device Classes,                                          *
+*      the various image acquisition libraries must derive from these classes  *
+*                                                                              *
+********************************************************************************
+*                                                                              *
+*  (c) 2026 Massimo Magnano                                                    *
+*                                                                              *
+*  See changelog.txt for Change Log                                            *
+*                                                                              *
+*******************************************************************************)
 unit XICA_Classes;
 
 {$ifdef fpc}
@@ -230,6 +230,8 @@ type
     //Set Params for this Item
     procedure SetParams(const AParams: TXICA_Params); virtual;
 
+    property Owner: TXICA_Device read rOwner;
+
     property Name: String read rName;
 
     property Params: TXICA_Params read GetParams write SetParams;
@@ -245,10 +247,7 @@ type
   TInitDefaultValuesEvent = procedure (var ACap: TXICA_Capabilities) of object;
 
   TXICA_SettingsDialogFunc = function (ADevice: TXICA_Device;
-                                       var ASelectedItemIndex: Integer;
-                                       { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
                                        AInitItemValues: TInitialItemValues;
-                                       var AParams: TArrayXICA_Params;
                                        AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
 
   TXICA_OnDeviceTransfer = function (ADevice: TXICA_Device; AItem: TXICA_Item
@@ -285,12 +284,12 @@ type
     function EnumerateItems(PreserveSelected: Boolean): Boolean;
 
 
-    class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual; abstract;
+    class function SettingsDialogFunc: TXICA_SettingsDialogFunc; virtual;
 
     function GetType_Str: String; virtual;
 
   public
-    constructor Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String); virtual;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); virtual;
     destructor Destroy; override;
 
     function GetCount: DWord; override;
@@ -446,11 +445,11 @@ type
     procedure SetParams(const AParams: TXICA_Params); virtual;
 
     //Display a dialog to let the user choose Settings of the Device
-    function SettingsDeviceDialog(var ASelectedItemIndex: Integer;
-                                  { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
-                                  AInitItemValues: TInitialItemValues;
-                                  var AParams: TArrayXICA_Params;
-                                  AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean; virtual;
+    function SettingsDeviceDialog(AInitItemValues: TInitialItemValues;
+                                  AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean; virtual; { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
+
+    property Owner: TXICA_DeviceManager read rOwner;
+    property Index: Integer read rIndex;
 
     property ID: String read rID;
     property Manufacturer: String read rManufacturer;
@@ -473,9 +472,9 @@ type
 
   { TXICA_DeviceManager }
 
-  TXICA_SelectDialogFunc = function (ADeviceManager: TXICA_DeviceManager): Integer;
+  TXICA_SelectDialogFunc = function (Sender: TObject; var ADevice: TXICA_Device): Boolean;
 
-  TXICA_OnDeviceManagerTransfer = function (ADeviceManager: TXICA_DeviceManager; AWiaDevice: TXICA_Device
+  TXICA_OnDeviceManagerTransfer = function (ADeviceManager: TXICA_DeviceManager; ADevice: TXICA_Device
                                      (*lFlags: LONG; pWiaTransferParams: PWiaTransferParams*)): Boolean of object;
 
   TXICA_DeviceManager = class(TOpenArrayList<TXICA_Device, TKeyString>)
@@ -494,11 +493,14 @@ type
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; virtual; abstract;
     function EnumerateDevices(PreserveSelected: Boolean): Boolean;
 
-    class function SelectDialogFunc: TXICA_SelectDialogFunc; virtual; abstract;
+    class function SelectDialogFunc: TXICA_SelectDialogFunc; virtual;
 
   public
-    constructor Create(const AEnumAll: Boolean = True);
+    constructor Create(const AEnumAll: Boolean = True); virtual;
     destructor Destroy; override;
+
+    //Is the library loaded?
+    function Enabled: Boolean; virtual; abstract;
 
     //Clears the list of devices
     function Clear: Boolean; override;
@@ -508,8 +510,8 @@ type
     //Refresh the list of devices
     procedure Refresh(const PreserveSelected: Boolean=True);
 
-    //Display a dialog to let the user choose a Device and returns it's index
-    function SelectDeviceDialog: Integer; virtual;
+    //Display a dialog to let the user choose a Device and return it
+    function SelectDeviceDialog: TXICA_Device; virtual;
 
     //Finds a matching Device index
     //  to Find Device by ID use FindByKey(ID)
@@ -536,6 +538,16 @@ type
   end;
 
 procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
+
+var
+  //Select Dialog Function Entry-Point
+  XICA_UI_SelectDialogFunc: TXICA_SelectDialogFunc = nil;
+
+  //Settings Dialog Function Entry-Point
+  //  override TXICA_Device.SettingsDialogFunc for a particular device
+  XICA_UI_SettingsDialogFunc: TXICA_SettingsDialogFunc = nil;
+
+  XICA_UI_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
 
 implementation
 
@@ -1167,6 +1179,11 @@ begin
   end;
 end;
 
+class function TXICA_Device.SettingsDialogFunc: TXICA_SettingsDialogFunc;
+begin
+  Result:= XICA_UI_SettingsDialogFunc;
+end;
+
 function TXICA_Device.GetType_Str: String;
 begin
   if (rType in [Low(TXICA_DeviceType)..High(TXICA_DeviceType)])
@@ -1174,7 +1191,7 @@ begin
   else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
 end;
 
-constructor TXICA_Device.Create(AOwner: TXICA_DeviceManager; AIndex: Integer; ADeviceID: String);
+constructor TXICA_Device.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create;
 
@@ -1505,8 +1522,7 @@ begin
   else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.SettingsDeviceDialog(var ASelectedItemIndex: Integer;
-                                           AInitItemValues: TInitialItemValues; var AParams: TArrayXICA_Params;
+function TXICA_Device.SettingsDeviceDialog(AInitItemValues: TInitialItemValues;
                                            AOnInitDefaultValues: TInitDefaultValuesEvent): Boolean;
 var
    fSettingsDialogFunc: TXICA_SettingsDialogFunc;
@@ -1517,8 +1533,7 @@ begin
      fSettingsDialogFunc:= @TXICA_Device.SettingsDialogFunc;
 
      if Assigned(fSettingsDialogFunc)
-     then Result:= fSettingsDialogFunc(Self, ASelectedItemIndex,
-                                       AInitItemValues, AParams, AOnInitDefaultValues);
+     then Result:= fSettingsDialogFunc(Self, AInitItemValues, AOnInitDefaultValues);
 
   except
   end;
@@ -1549,6 +1564,7 @@ begin
 
   Clear(PreserveSelected);
 
+  if Enabled then
   try
      //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
      if (lastSelected = nil)
@@ -1559,6 +1575,11 @@ begin
     Clear(PreserveSelected);
     Result :=False;
   end;
+end;
+
+class function TXICA_DeviceManager.SelectDialogFunc: TXICA_SelectDialogFunc;
+begin
+  Result:= XICA_UI_SelectDialogFunc;
 end;
 
 constructor TXICA_DeviceManager.Create(const AEnumAll: Boolean);
@@ -1593,15 +1614,15 @@ begin
   HasEnumerated:= EnumerateDevices(PreserveSelected);
 end;
 
-function TXICA_DeviceManager.SelectDeviceDialog: Integer;
+function TXICA_DeviceManager.SelectDeviceDialog: TXICA_Device;
 var
    fSelectDialogFunc: TXICA_SelectDialogFunc;
 
 begin
-  Result:= -1;
+  Result:= nil;
   try
      fSelectDialogFunc:= @TXICA_DeviceManager.SelectDialogFunc;
-     if Assigned(fSelectDialogFunc) then Result:= fSelectDialogFunc(Self);
+     if Assigned(fSelectDialogFunc) then fSelectDialogFunc(Self, Result);
 
   except
   end;

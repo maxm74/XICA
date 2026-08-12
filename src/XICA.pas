@@ -1,20 +1,20 @@
-(****************************************************************************
-*                XICA (Cross-platform Image Capture Architecture)
-*
-*  FILE: XICA.pas
-*
-*  VERSION:     0.0.1
-*
-*  DESCRIPTION:
-*    The Main Manager to enumerate the different libraries
-*
-*****************************************************************************
-*
-*  (c) 2026 Massimo Magnano
-*
-*  See changelog.txt for Change Log
-*
-*****************************************************************************)
+(*******************************************************************************
+*                XICA (Cross-platform Image Capture Architecture)              *
+*                                                                              *
+*  FILE: XICA.pas                                                              *
+*                                                                              *
+*  VERSION:     0.0.1                                                          *
+*                                                                              *
+*  DESCRIPTION:                                                                *
+*    The Main Manager to enumerate the different libraries                     *
+*                                                                              *
+********************************************************************************
+*                                                                              *
+*  (c) 2026 Massimo Magnano                                                    *
+*                                                                              *
+*  See changelog.txt for Change Log                                            *
+*                                                                              *
+*******************************************************************************)
 unit XICA;
 
 {$ifdef fpc}
@@ -42,9 +42,17 @@ type
 
     function FreeElement(var aData: TXICA_DeviceManager): Boolean; override;
 
+    class function SelectDialogFunc: TXICA_SelectDialogFunc; virtual;
+
   public
     constructor Create(AEnumAll: Boolean = True);
     destructor Destroy; override;
+
+    //Refresh the list of devices
+    procedure Refresh(const PreserveSelected: Boolean=True);
+
+    //Display a dialog to let the user choose a Device and return it
+    function SelectDeviceDialog: TXICA_Device; virtual;
 
     //Kind of Enum, if True Enum even disconnected Devices
     property EnumAll: Boolean read rEnumAll write rEnumAll;
@@ -93,6 +101,11 @@ begin
   end;
 end;
 
+class function TXICA_Manager.SelectDialogFunc: TXICA_SelectDialogFunc;
+begin
+  Result:= XICA_UI_SelectDialogFunc;
+end;
+
 constructor TXICA_Manager.Create(AEnumAll: Boolean);
 begin
   inherited Create;
@@ -103,6 +116,30 @@ end;
 destructor TXICA_Manager.Destroy;
 begin
   inherited Destroy;
+end;
+
+procedure TXICA_Manager.Refresh(const PreserveSelected: Boolean);
+var
+   i: Integer;
+   curDeviceManager: TXICA_DeviceManager;
+
+begin
+   for i:=0 to Count-1 do
+    if Get(i, curDeviceManager) then curDeviceManager.Refresh(PreserveSelected);
+end;
+
+function TXICA_Manager.SelectDeviceDialog: TXICA_Device;
+var
+   fSelectDialogFunc: TXICA_SelectDialogFunc;
+
+begin
+  Result:= nil;
+  try
+     fSelectDialogFunc:= TXICA_Manager.SelectDialogFunc;
+     if Assigned(fSelectDialogFunc) then fSelectDialogFunc(Self, Result);
+
+  except
+  end;
 end;
 
 end.

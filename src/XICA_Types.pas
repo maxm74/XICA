@@ -1,20 +1,20 @@
-(****************************************************************************
-*                XICA (Cross-platform Image Capture Architecture)
-*
-*  FILE: XICA_Types.pas
-*
-*  VERSION:     0.0.1
-*
-*  DESCRIPTION:
-*    Common Types and Consts
-*
-*****************************************************************************
-*
-*  (c) 2026 Massimo Magnano
-*
-*  See changelog.txt for Change Log
-*
-*****************************************************************************)
+(*******************************************************************************
+*                XICA (Cross-platform Image Capture Architecture)              *
+*                                                                              *
+*  FILE: XICA_Types.pas                                                        *
+*                                                                              *
+*  VERSION:     0.0.1                                                          *
+*                                                                              *
+*  DESCRIPTION:                                                                *
+*    Common Types and Consts                                                   *
+*                                                                              *
+********************************************************************************
+*                                                                              *
+*  (c) 2026 Massimo Magnano                                                    *
+*                                                                              *
+*  See changelog.txt for Change Log                                            *
+*                                                                              *
+*******************************************************************************)
 unit XICA_Types;
 
 {$ifdef fpc}
@@ -311,10 +311,6 @@ type
     DocHandlingSet: TXICA_DocumentHandlings;
   end;
   TXICA_CapabilitiesClass = class of TXICA_Capabilities;
-
-
-var
-  XICA_UI_Settings_Unit_cm: Boolean = True; //False to show then measurement in fucking inches
 
 
 procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;

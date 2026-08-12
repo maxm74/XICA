@@ -1,0 +1,7 @@
+{"version":1,"strings":[
+{"hash":124531461,"name":"txicaselectform.caption","sourcebytes":[83,101,108,101,99,116,32,88,73,67,65,32,68,101,118,105,99,101],"value":"Select XICA Device"},
+{"hash":146640072,"name":"txicaselectform.btrefresh.caption","sourcebytes":[82,101,102,114,101,115,104],"value":"Refresh"},
+{"hash":346165,"name":"txicaselectform.lvsources.columns[0].caption","sourcebytes":[78,97,109,101],"value":"Name"},
+{"hash":43225858,"name":"txicaselectform.lvsources.columns[1].caption","sourcebytes":[77,97,110,117,102,97,99,116,117,114,101,114],"value":"Manufacturer"},
+{"hash":376933,"name":"txicaselectform.lvsources.columns[2].caption","sourcebytes":[84,121,112,101],"value":"Type"}
+]}
