@@ -5,13 +5,24 @@ msgstr "Content-Type: text/plain; charset=UTF-8"
 msgid "Auto type"
 msgstr ""
 
-#: xica_classes.rslandscape
-msgid "Landscape"
+#: xica_classes.rsexccannotgetcapabilities
+#, object-pascal-format
+msgid "Cannot Get Capabilities for Device Item %d"
 msgstr ""
 
-#: xica_classes.rsnoselecteditem
+#: xica_classes.rsexccannotgetitem
 #, object-pascal-format
+msgid "Cannot Get Device Item %d"
+msgstr ""
+
+#: xica_classes.rsexcnoselecteditem
+#, object-pascal-format
+msgctxt "xica_classes.rsexcnoselecteditem"
 msgid "No Selected Item in Device %s"
+msgstr ""
+
+#: xica_classes.rslandscape
+msgid "Landscape"
 msgstr ""
 
 #: xica_classes.rsportrait

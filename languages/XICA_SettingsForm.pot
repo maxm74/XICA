@@ -1,0 +1,23 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: xica_settingsform.rsapplychanges
+#, object-pascal-format
+msgid "Apply Changes to Item %s of %s"
+msgstr ""
+
+#: xica_settingsform.rserrorselecting
+#, object-pascal-format
+msgid ""
+"Error Selecting Item %s of %s\n"
+"Try to Select another Device Item"
+msgstr ""
+
+#: xica_settingsform.rserrorselectingint
+#, object-pascal-format
+msgid ""
+"Error Selecting Item [%d] of %s\n"
+"%s\n"
+"Try to Select another Device Item"
+msgstr ""
+

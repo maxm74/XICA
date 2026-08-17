@@ -5,14 +5,25 @@ msgstr "Content-Type: text/plain; charset=UTF-8"
 msgid "Auto type"
 msgstr "Tipo Automatico"
 
+#: xica_classes.rsexccannotgetcapabilities
+#, object-pascal-format
+msgid "Cannot Get Capabilities for Device Item %d"
+msgstr ""
+
+#: xica_classes.rsexccannotgetitem
+#, object-pascal-format
+msgid "Cannot Get Device Item %d"
+msgstr ""
+
+#: xica_classes.rsexcnoselecteditem
+#, object-pascal-format
+msgctxt "xica_classes.rsexcnoselecteditem"
+msgid "No Selected Item in Device %s"
+msgstr ""
+
 #: xica_classes.rslandscape
 msgid "Landscape"
 msgstr "Orizzontale"
-
-#: xica_classes.rsnoselecteditem
-#, object-pascal-format
-msgid "No Selected Item in Device %s"
-msgstr ""
 
 #: xica_classes.rsportrait
 msgid "Portrait"

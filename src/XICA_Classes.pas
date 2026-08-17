@@ -34,7 +34,10 @@ resourcestring
   rsLandscape = 'Landscape';
   rsPortrait = 'Portrait';
   rsAutotype = 'Auto type';
-  rsNoSelectedItem = 'No Selected Item in Device %s';
+  rsExcNoSelectedItem = 'No Selected Item in Device %s';
+  rsExcCannotGetItem = 'Cannot Get Device Item %d';
+  rsExcCannotGetCapabilities = 'Cannot Get Capabilities for Device Item %d';
+
 
 type
   TXICA_DeviceManager = class;
@@ -78,9 +81,6 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual; abstract;
 
-    class function ParamsClass: TXICA_ParamsClass; virtual;
-    class function CapabilitiesClass: TXICA_CapabilitiesClass; virtual;
-
   public
     Type_: TXICA_ItemTypes;
     SubType: Word;
@@ -90,6 +90,9 @@ type
 
     constructor Create(AOwner: TXICA_Device; AIndex: Integer; AName: String); virtual;
     destructor Destroy; override;
+
+    class function ParamsClass: TXICA_ParamsClass; virtual;
+    class function CapabilitiesClass: TXICA_CapabilitiesClass; virtual;
 
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
@@ -238,6 +241,7 @@ type
     property Capabilities: TXICA_Capabilities read GetCapabilities;
   end;
   PXICA_Item = ^TXICA_Item;
+  TXICA_ItemClass = class of TXICA_Item;
   TArrayXICA_Item = array of TXICA_Item;
 
   { TXICA_Device }
@@ -291,6 +295,8 @@ type
   public
     constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); virtual;
     destructor Destroy; override;
+
+    class function ItemClass: TXICA_ItemClass; virtual;
 
     function GetCount: DWord; override;
 
@@ -445,8 +451,8 @@ type
     procedure SetParams(const AParams: TXICA_Params); virtual;
 
     //Display a dialog to let the user choose Settings of the Device
-    function SettingsDeviceDialog(AInitItemValues: TInitialItemValues;
-                                  AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean; virtual; { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
+    function SettingsDeviceDialog(const AInitItemValues: TInitialItemValues;
+                                  const AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean; virtual; { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
 
     property Owner: TXICA_DeviceManager read rOwner;
     property Index: Integer read rIndex;
@@ -537,6 +543,10 @@ type
     property OnAfterDeviceTransfer: TXICA_OnDeviceManagerTransfer read rOnAfterDeviceTransfer write rOnAfterDeviceTransfer;
   end;
 
+
+function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params; const AInitItemValues: TInitialItemValues = initParams): DWord; overload;
+function CopyParams(const AParams: TArrayXICA_Params; const ADevice: TXICA_Device): DWord; overload;
+
 procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
 
 var
@@ -553,6 +563,85 @@ implementation
 
 uses math, XICA_PaperSizes;
 
+function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params; const AInitItemValues: TInitialItemValues = initParams): DWord;
+var
+  i: Integer;
+  curItem: TXICA_Item;
+  curCap: TXICA_Capabilities;
+
+begin
+  Result:= 0;
+  if (ADevice <> nil) then
+  try
+    Result:= ADevice.Count;
+    AParams:= nil;
+    if (Result > 0) then
+    begin
+      SetLength(AParams, Result);
+      for i:= 0 to Result-1 do
+      begin
+        if ADevice.Get(i, curItem) then
+        begin
+          AParams[i]:= curItem.ParamsClass.Create;
+
+          Case AInitItemValues of
+          initDefault:  begin
+                          curCap:= curItem.Capabilities;
+                          if (curCap = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
+
+                          if (curItem.Category = xicFEEDER)
+                          then AParams[i].CopyFromCapabilitiesDefaultValues(curCap, xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesDefaultValues(curCap);
+                        end;
+
+          initParams:   AParams[i].Assign(curItem.Params);
+
+          initCurrent:  begin
+                          curCap:= curItem.Capabilities;
+                          if (curCap = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
+
+                          if (curItem.Category = xicFEEDER)
+                          then AParams[i].CopyFromCapabilitiesCurrentValues(curCap, xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesCurrentValues(curCap);
+                        end;
+          end;
+        end
+        else raise Exception.Create(Format(rsExcCannotGetItem, [i]));
+      end;
+    end;
+
+  except
+    AParams:= nil; Result:= 0;
+  end;
+end;
+
+function CopyParams(const AParams: TArrayXICA_Params; const ADevice: TXICA_Device): DWord;
+var
+  i: Integer;
+  curItem: TXICA_Item;
+
+begin
+  Result:= 0;
+  if (ADevice <> nil) then
+  try
+    Result:= ADevice.Count;
+    if (Result > 0) and (Result = Length(AParams)) then
+    begin
+      for i:= 0 to Result-1 do
+      begin
+        if ADevice.Get(i, curItem)
+        then begin
+               if (AParams[i] <> nil) and (curItem.Params <> nil) then curItem.Params.Assign(AParams[i])
+             end
+        else Exit(0);
+      end;
+    end
+    else Result:= 0;
+
+  except
+    Result:= 0;
+  end;
+end;
 
 procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
 var
@@ -1188,7 +1277,7 @@ function TXICA_Device.GetType_Str: String;
 begin
   if (rType in [Low(TXICA_DeviceType)..High(TXICA_DeviceType)])
   then Result:= XICA_DeviceTypeDescr[rType]
-  else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
+  else Result:= 'Unknown ('+IntToStr(Integer(rType))+')';
 end;
 
 constructor TXICA_Device.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
@@ -1204,6 +1293,11 @@ end;
 destructor TXICA_Device.Destroy;
 begin
   inherited Destroy;
+end;
+
+class function TXICA_Device.ItemClass: TXICA_ItemClass;
+begin
+  Result:= TXICA_Item;
 end;
 
 function TXICA_Device.GetCount: DWord;
@@ -1223,13 +1317,13 @@ end;
 function TXICA_Device.Download(APath, AFileName, AExt: String): Integer;
 begin
   if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
 begin
   if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt, AFormat)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.Download(APath, AFileName, AExt: String;
@@ -1237,293 +1331,293 @@ function TXICA_Device.Download(APath, AFileName, AExt: String;
                                UseRelativePath: Boolean): Integer;
 begin
   if (Selected <> nil) then Result:= Selected^.Download(APath, AFileName, AExt, AFormat, DownloadedFiles, UseRelativePath)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
   if (Selected <> nil) then Result:= Selected^.GetResolutionsX(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
   if (Selected <> nil) then Result:= Selected^.GetResolutionsY(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetResolutionsLimit(out AMin, AMax: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetResolutionsLimit(AMin, AMax)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetResolutionsLimit(out AMinX, AMaxX, AMinY, AMaxY: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetResolutionsLimit(AMinX, AMaxX, AMinY, AMaxY)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetResolution(out AXRes, AYRes: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetResolution(AXRes, AYRes)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetResolution(const AXRes, AYRes: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetResolution(AXRes, AYRes)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperSize(out AWidth, AHeight: Single): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperSize(AWidth, AHeight)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperSize(AWidth, AHeight, ADefaultWidth, ADefaultHeight)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperSizeMax(AMaxWidth, AMaxHeight)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPaperSize(Width, Height: Single): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPaperSize(Width, Height)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperRect(out Current: TRect): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperRect(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperRect(out Current, Default: TRect): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperRect(Current, Default)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPaperRect(X, Y, Width, Height)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperAlign(out ALandscape: Boolean; out HAlign: TXICA_AlignHorizontal; out VAlign: TXICA_AlignVertical): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperAlign(ALandscape, HAlign, VAlign)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPaperAlign(const ALandscape: Boolean; const HAlign: TXICA_AlignHorizontal; const VAlign: TXICA_AlignVertical): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPaperAlign(ALandscape, HAlign, VAlign)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperType(out Current: TXICA_PaperType): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperType(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperType(out Current, Default: TXICA_PaperType; out Values: TXICA_PaperTypes): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperType(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPaperType(const Value: TXICA_PaperType): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPaperType(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPaperLandscape(out Value: Boolean): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPaperLandscape(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPaperLandscape(const Value: Boolean): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPaperLandscape(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetRotation(out Value: TXICA_Rotation): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetRotation(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetRotation(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetRotation(const Value: TXICA_Rotation): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetRotation(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetDocumentHandling(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetDocumentHandling(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetDocumentHandling(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPages(out Current: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPages(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetPages(Current, Default, AMin, AMax, AStep)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetPages(const Value: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetPages(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetBrightness(out Current: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetBrightness(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetBrightness(Current, Default, AMin, AMax, AStep)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetBrightness(const Value: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetBrightness(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetContrast(out Current: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetContrast(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetContrast(Current, Default, AMin, AMax, AStep)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetContrast(const Value: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetContrast(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetImageFormat(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetImageFormat(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetImageFormat(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetDataType(out Current: TXICA_DataType): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetDataType(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetDataType(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetDataType(const Value: TXICA_DataType): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetDataType(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetBitDepth(out Current: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetBitDepth(Current)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.GetBitDepth(Current, Default, Values)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.SetBitDepth(const Value: Integer): Boolean;
 begin
   if (Selected <> nil) then Result:= Selected^.SetBitDepth(Value)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetCapabilities: TXICA_Capabilities;
 begin
   if (Selected <> nil) then Result:= Selected^.GetCapabilities
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 function TXICA_Device.GetParams: TXICA_Params;
 begin
   if (Selected <> nil) then Result:= Selected^.GetParams
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
 procedure TXICA_Device.SetParams(const AParams: TXICA_Params);
 begin
   if (Selected <> nil) then Selected^.SetParams(AParams)
-  else raise Exception.Create(Format(rsNoSelectedItem, [Name]));
+  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.SettingsDeviceDialog(AInitItemValues: TInitialItemValues;
-                                           AOnInitDefaultValues: TInitDefaultValuesEvent): Boolean;
+function TXICA_Device.SettingsDeviceDialog(const AInitItemValues: TInitialItemValues;
+                                           const AOnInitDefaultValues: TInitDefaultValuesEvent): Boolean;
 var
    fSettingsDialogFunc: TXICA_SettingsDialogFunc;
 

@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/08/17 First Write of UI Settings Dialog Functions and Form;
+           Added GeDatatType_Str and GeImageFormat_Str in Capabilities Class;
+
 2026/08/12 First Write of UI Select Dialog Functions and Form;
            Added TXICA_Manager.Refresh method;
            Added Owner and Index properties to classes;

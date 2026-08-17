@@ -8,7 +8,7 @@ unit XICA_UI_pkg;
 interface
 
 uses
-  XICA_SelectForm;
+  XICA_SelectForm, XICA_SettingsForm;
 
 implementation
 

@@ -276,6 +276,8 @@ type
   TArrayXICA_Params = array of TXICA_Params;
   TXICA_ParamsClass = class of TXICA_Params;
 
+  { TXICA_Capabilities }
+
   TXICA_Capabilities = class(TPersistent)
   public
     PaperSizeMaxWidth,
@@ -309,9 +311,49 @@ type
     DocHandlingCurrent,
     DocHandlingDefault,
     DocHandlingSet: TXICA_DocumentHandlings;
+
+    function GeDatatType_Str(const ADataType: TXICA_DataType): String; virtual;
+    function GeImageFormat_Str(const AImageFormat: TXICA_ImageFormat): String; virtual;
   end;
   TXICA_CapabilitiesClass = class of TXICA_Capabilities;
 
+const
+  XICA_ImageFormatDescr : array [TXICA_ImageFormat] of String = (
+    'Undefined',
+    'Raw RGB format',
+    'Windows bitmap without a header',
+    'Windows Device Independent Bitmap',
+    'Extended Windows metafile',
+    'Windows metafile',
+    'JPEG compressed format',
+    'W3C PNG format',
+    'GIF image format',
+    'Tagged Image File format',
+    'Exchangeable File Format',
+    'Eastman Kodak file format',
+    'FlashPix format',
+    'Windows icon file format',
+    'Camera Image File format',
+    'Apple file format',
+    'JPEG 2000 compressed format',
+    'JPEG 2000X compressed format',
+    'Raw image file format',
+    'Joint Bi-level Image experts Group format',
+    'Joint Bi-level Image experts Group format (ver 2)'
+  );
+
+  XICA_DataTypeDescr: array [TXICA_DataType] of String = (
+    'Black & White',
+    'Gray scale',
+    'Color (RGB)',
+    'Color (RAW RGB)',
+    'Color (RAW BGR)',
+    'Color (RAW YUV)',
+    'Color (RAW YUVK)',
+    'Color (RAW CMY)',
+    'Color (RAW CMYK)',
+    'Auto'
+  );
 
 procedure VersionStrToInt(const s: String; out Ver, VerSub: Integer); overload;
 
@@ -504,6 +546,22 @@ begin
   XMLWork.Flush;
 
   Result:= True;
+end;
+
+{ TXICA_Capabilities }
+
+function TXICA_Capabilities.GeDatatType_Str(const ADataType: TXICA_DataType): String;
+begin
+  if (ADataType in [Low(TXICA_DataType)..High(TXICA_DataType)])
+  then Result:= XICA_DataTypeDescr[ADataType]
+  else Result:= 'Unknown ('+IntToStr(Integer(ADataType))+')';
+end;
+
+function TXICA_Capabilities.GeImageFormat_Str(const AImageFormat: TXICA_ImageFormat): String;
+begin
+  if (AImageFormat in [Low(TXICA_ImageFormat)..High(TXICA_ImageFormat)])
+  then Result:= XICA_ImageFormatDescr[AImageFormat]
+  else Result:= 'Unknown ('+IntToStr(Integer(AImageFormat))+')';
 end;
 
 

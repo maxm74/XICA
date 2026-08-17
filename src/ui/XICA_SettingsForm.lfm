@@ -1,12 +1,12 @@
-object XICASettingsSource: TXICASettingsSource
+object XICASettingsDevice: TXICASettingsDevice
   Left = 350
   Height = 440
   Top = 127
   Width = 543
-  ActiveControl = lvSourceItems
+  ActiveControl = lvDeviceItems
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  Caption = 'Settings of XICA Source'
+  Caption = 'Settings of XICA Device'
   ClientHeight = 440
   ClientWidth = 543
   Position = poScreenCenter
@@ -478,16 +478,16 @@ object XICASettingsSource: TXICASettingsSource
     ClientHeight = 400
     ClientWidth = 543
     TabOrder = 1
-    object PageSourceTypes: TPageControl
+    object PageDeviceTypes: TPageControl
       Left = 2
       Height = 280
       Top = 118
       Width = 540
-      ActivePage = tbSource_Scanner
+      ActivePage = tbDevice_Scanner
       Align = alBottom
       TabIndex = 0
       TabOrder = 0
-      object tbSource_Scanner: TTabSheet
+      object tbDevice_Scanner: TTabSheet
         Caption = 'Scanner'
         ClientHeight = 254
         ClientWidth = 534
@@ -839,7 +839,7 @@ object XICASettingsSource: TXICASettingsSource
         end
       end
     end
-    object lvSourceItems: TListView
+    object lvDeviceItems: TListView
       Left = 2
       Height = 80
       Top = 2
@@ -850,13 +850,13 @@ object XICASettingsSource: TXICASettingsSource
       HideSelection = False
       IconOptions.Arrangement = iaLeft
       IconOptions.AutoArrange = True
-      LargeImages = ImgListSource
+      LargeImages = ImgListDevice
       ReadOnly = True
       ScrollBars = ssAutoHorizontal
       ShowColumnHeaders = False
       TabOrder = 1
       ViewStyle = vsIcon
-      OnSelectItem = lvSourceItemsSelectItem
+      OnSelectItem = lvDeviceItemsSelectItem
     end
     object panelCenter: TPanel
       Left = 2
@@ -969,7 +969,7 @@ object XICASettingsSource: TXICASettingsSource
       C73F5916ACF1
     }
   end
-  object ImgListSource: TImageList
+  object ImgListDevice: TImageList
     Height = 32
     Width = 44
     Left = 157

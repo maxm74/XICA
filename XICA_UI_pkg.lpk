@@ -26,6 +26,10 @@
         <Filename Value="src\ui\XICA_SelectForm.pas"/>
         <UnitName Value="XICA_SelectForm"/>
       </Item>
+      <Item>
+        <Filename Value="src\ui\XICA_SettingsForm.pas"/>
+        <UnitName Value="XICA_SettingsForm"/>
+      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>
