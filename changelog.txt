@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/08/14 Added CopyParams, FreeParams functions;
+           Get Capabilities form Device only the first time;
+
 2026/08/17 First Write of UI Settings Dialog Functions and Form;
            Added GeDatatType_Str and GeImageFormat_Str in Capabilities Class;
 

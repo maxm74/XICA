@@ -1,10 +1,10 @@
 object XICATests: TXICATests
   Left = 344
-  Height = 435
+  Height = 445
   Top = 250
   Width = 661
   Caption = 'XICA Internal Tests'
-  ClientHeight = 435
+  ClientHeight = 445
   ClientWidth = 661
   LCLVersion = '4.99.0.0'
   OnCreate = FormCreate
@@ -21,7 +21,7 @@ object XICATests: TXICATests
   object Memo1: TMemo
     Left = 0
     Height = 343
-    Top = 92
+    Top = 102
     Width = 661
     Align = alBottom
     ScrollBars = ssAutoBoth
@@ -42,30 +42,13 @@ object XICATests: TXICATests
     ClientHeight = 44
     ClientWidth = 378
     TabOrder = 3
-    object edRes: TSpinEdit
-      Left = 72
-      Height = 23
-      Top = 0
-      Width = 74
-      MaxValue = 600
-      MinValue = 100
-      TabOrder = 0
-      Value = 150
-    end
-    object Label1: TLabel
-      Left = 8
-      Height = 15
-      Top = 0
-      Width = 56
-      Caption = 'Resolution'
-    end
     object btDownload: TButton
-      Left = 152
+      Left = 8
       Height = 25
       Top = 0
       Width = 75
       Caption = 'Download'
-      TabOrder = 1
+      TabOrder = 0
       OnClick = btDownloadClick
     end
   end
@@ -113,5 +96,14 @@ object XICATests: TXICATests
     Caption = 'UI Select'
     TabOrder = 6
     OnClick = btUI_SelectClick
+  end
+  object btSettings: TButton
+    Left = 6
+    Height = 25
+    Top = 71
+    Width = 75
+    Caption = 'Settings'
+    TabOrder = 7
+    OnClick = btSettingsClick
   end
 end

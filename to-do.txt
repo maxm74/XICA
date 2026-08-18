@@ -1,0 +1,8 @@
+XICA TO-DO
+======================
+
+Add a Platform Unit with Device Manager Register (WIA,Twain under Windows; SANE under Linux; etc...)
+
+BUGS:
+
+  Duplex does not work on HP ?

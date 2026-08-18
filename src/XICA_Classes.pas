@@ -544,8 +544,15 @@ type
   end;
 
 
-function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params; const AInitItemValues: TInitialItemValues = initParams): DWord; overload;
+// Do a Copy of Device's Items Params/Capabilites, use FreeParams/FreeCapabilities to Free it
+function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params;
+                    const AInitItemValues: TInitialItemValues = initParams): DWord; overload;
+function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params; out ACapabilities: TArrayXICA_Capabilities;
+                    const AInitItemValues: TInitialItemValues = initParams): DWord; overload;
 function CopyParams(const AParams: TArrayXICA_Params; const ADevice: TXICA_Device): DWord; overload;
+
+procedure FreeParams(var AParams: TArrayXICA_Params);
+procedure FreeCapabilities(var ACapabilities: TArrayXICA_Capabilities);
 
 procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
 
@@ -567,7 +574,6 @@ function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params;
 var
   i: Integer;
   curItem: TXICA_Item;
-  curCap: TXICA_Capabilities;
 
 begin
   Result:= 0;
@@ -586,23 +592,21 @@ begin
 
           Case AInitItemValues of
           initDefault:  begin
-                          curCap:= curItem.Capabilities;
-                          if (curCap = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
+                          if (curItem.Capabilities = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
 
                           if (curItem.Category = xicFEEDER)
-                          then AParams[i].CopyFromCapabilitiesDefaultValues(curCap, xaHCenter, xaVTop)
-                          else AParams[i].CopyFromCapabilitiesDefaultValues(curCap);
+                          then AParams[i].CopyFromCapabilitiesDefaultValues(curItem.Capabilities, xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesDefaultValues(curItem.Capabilities);
                         end;
 
           initParams:   AParams[i].Assign(curItem.Params);
 
           initCurrent:  begin
-                          curCap:= curItem.Capabilities;
-                          if (curCap = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
+                          if (curItem.Capabilities = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
 
                           if (curItem.Category = xicFEEDER)
-                          then AParams[i].CopyFromCapabilitiesCurrentValues(curCap, xaHCenter, xaVTop)
-                          else AParams[i].CopyFromCapabilitiesCurrentValues(curCap);
+                          then AParams[i].CopyFromCapabilitiesCurrentValues(curItem.Capabilities, xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesCurrentValues(curItem.Capabilities);
                         end;
           end;
         end
@@ -612,6 +616,56 @@ begin
 
   except
     AParams:= nil; Result:= 0;
+  end;
+end;
+
+function CopyParams(const ADevice: TXICA_Device; out AParams: TArrayXICA_Params; out ACapabilities: TArrayXICA_Capabilities;
+                    const AInitItemValues: TInitialItemValues): DWord;
+var
+  i: Integer;
+  curItem: TXICA_Item;
+
+begin
+  Result:= 0;
+  if (ADevice <> nil) then
+  try
+    Result:= ADevice.Count;
+    AParams:= nil;
+    if (Result > 0) then
+    begin
+      SetLength(AParams, Result);
+      SetLength(ACapabilities, Result);
+      for i:= 0 to Result-1 do
+      begin
+        if ADevice.Get(i, curItem) then
+        begin
+          AParams[i]:= curItem.ParamsClass.Create;
+          ACapabilities[i]:= curItem.CapabilitiesClass.Create;
+          if (curItem.Capabilities = nil) then raise Exception.Create(Format(rsExcCannotGetCapabilities, [i]));
+          ACapabilities[i].Assign(curItem.Capabilities);
+
+          Case AInitItemValues of
+          initDefault:  begin
+                          if (curItem.Category = xicFEEDER)
+                          then AParams[i].CopyFromCapabilitiesDefaultValues(ACapabilities[i], xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesDefaultValues(ACapabilities[i]);
+                        end;
+
+          initParams:   AParams[i].Assign(curItem.Params);
+
+          initCurrent:  begin
+                          if (curItem.Category = xicFEEDER)
+                          then AParams[i].CopyFromCapabilitiesCurrentValues(ACapabilities[i], xaHCenter, xaVTop)
+                          else AParams[i].CopyFromCapabilitiesCurrentValues(ACapabilities[i]);
+                        end;
+          end;
+        end
+        else raise Exception.Create(Format(rsExcCannotGetItem, [i]));
+      end;
+    end;
+
+  except
+    AParams:= nil; ACapabilities:= nil; Result:= 0;
   end;
 end;
 
@@ -631,7 +685,7 @@ begin
       begin
         if ADevice.Get(i, curItem)
         then begin
-               if (AParams[i] <> nil) and (curItem.Params <> nil) then curItem.Params.Assign(AParams[i])
+               if (AParams[i] <> nil) then curItem.Params:= AParams[i];
              end
         else Exit(0);
       end;
@@ -641,6 +695,24 @@ begin
   except
     Result:= 0;
   end;
+end;
+
+procedure FreeParams(var AParams: TArrayXICA_Params);
+var
+   i: Integer;
+
+begin
+  for i:= 0 to Length(AParams)-1 do if (AParams[i] <> nil) then AParams[i].Free;
+  AParams:= nil;
+end;
+
+procedure FreeCapabilities(var ACapabilities: TArrayXICA_Capabilities);
+var
+   i: Integer;
+
+begin
+  for i:= 0 to Length(ACapabilities)-1 do if (ACapabilities[i] <> nil) then ACapabilities[i].Free;
+  ACapabilities:= nil;
 end;
 
 procedure VersionStrToInt(const s: String; const ADevice: TXICA_Device); overload;
@@ -1120,48 +1192,47 @@ begin
   try
     rCapabilities:= CapabilitiesClass.Create;
 
+    with rCapabilities do
+    begin
+      if (Category <> xicAUTO) then
+      begin
+        Res:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
+        //if not(Res) then raise Exception.Create('GetPaperSizeMax');
+
+        Res:= GetPaperType(PaperTypeCurrent, PaperTypeDefault, PaperTypeSet);
+        //if not(Res) then raise Exception.Create('GetPaperType');
+
+        Res:= GetRotation(RotationCurrent, RotationDefault, RotationSet);
+        //if not(Res) then raise Exception.Create('GetRotation');
+
+        pFlags:= GetResolutionsX(ResolutionCurrent, ResolutionDefault, ResolutionArray);
+        Res:= (prop_READ in pFlags);
+        //if not(Res) then raise Exception.Create('GetResolutionsX');
+        ResolutionRange:= prop_RANGE in pFlags;
+
+        Res:= GetBrightness(BrightnessCurrent, BrightnessDefault, BrightnessMin, BrightnessMax, BrightnessStep);
+        //if not(Res) then raise Exception.Create('GetBrightness');
+
+        Res:= GetContrast(ContrastCurrent, ContrastDefault, ContrastMin, ContrastMax, ContrastStep);
+        //if not(Res) then raise Exception.Create('GetContrast');
+
+        (*
+        pFlags:= GetBitDepth(BitDepthCurrent, BitDepthDefault, BitDepthArray);
+        Res:= (WIAProp_READ in pFlags);
+        if not(Res) then exit;
+        *)
+
+        Res:= GetDataType(DataTypeCurrent, DataTypeDefault, DataTypeSet);
+        //if not(Res) then raise Exception.Create('GetDataType');
+
+        Res:= GetDocumentHandling(DocHandlingCurrent, DocHandlingDefault, DocHandlingSet);
+        //if not(Res) then exit;
+      end;
+    end;
+
   except
     if (rCapabilities <> nil) then rCapabilities.Free;
     rCapabilities:= nil;
-  end;
-
-  if (rCapabilities <> nil) then
-  with rCapabilities do
-  begin
-    if (Category <> xicAUTO) then
-    begin
-      Res:= GetPaperSizeMax(PaperSizeMaxWidth, PaperSizeMaxHeight);
-      //if not(Res) then raise Exception.Create('GetPaperSizeMax');
-
-      Res:= GetPaperType(PaperTypeCurrent, PaperTypeDefault, PaperTypeSet);
-      //if not(Res) then raise Exception.Create('GetPaperType');
-
-      Res:= GetRotation(RotationCurrent, RotationDefault, RotationSet);
-      //if not(Res) then raise Exception.Create('GetRotation');
-
-      pFlags:= GetResolutionsX(ResolutionCurrent, ResolutionDefault, ResolutionArray);
-      Res:= (prop_READ in pFlags);
-      //if not(Res) then raise Exception.Create('GetResolutionsX');
-      ResolutionRange:= prop_RANGE in pFlags;
-
-      Res:= GetBrightness(BrightnessCurrent, BrightnessDefault, BrightnessMin, BrightnessMax, BrightnessStep);
-      //if not(Res) then raise Exception.Create('GetBrightness');
-
-      Res:= GetContrast(ContrastCurrent, ContrastDefault, ContrastMin, ContrastMax, ContrastStep);
-      //if not(Res) then raise Exception.Create('GetContrast');
-
-      (*
-      pFlags:= GetBitDepth(BitDepthCurrent, BitDepthDefault, BitDepthArray);
-      Res:= (WIAProp_READ in pFlags);
-      if not(Res) then exit;
-      *)
-
-      Res:= GetDataType(DataTypeCurrent, DataTypeDefault, DataTypeSet);
-      //if not(Res) then raise Exception.Create('GetDataType');
-
-      Res:= GetDocumentHandling(DocHandlingCurrent, DocHandlingDefault, DocHandlingSet);
-      //if not(Res) then exit;
-    end;
   end;
 
   Result:= rCapabilities;
@@ -1187,45 +1258,57 @@ var
    Result: Boolean;
 
 begin
-  Result:= False;
-
   if (AParams <> nil) then
-  with AParams do
   begin
-    if (Category <> xicAUTO) then
+    Result:= False;
+
+    if (rParams = nil) then
+    try
+       rParams:= ParamsClass.Create;
+
+    except
+       if (rParams <> nil) then rParams.Free;
+       rParams:= nil;
+    end;
+
+    if (rParams <> nil) then
+    with AParams do
     begin
-      Result:= SetResolution(Resolution, Resolution);
-      //if not(Result) then raise Exception.Create('SetResolution');
+      if (Category <> xicAUTO) then
+      begin
+        Result:= SetResolution(Resolution, Resolution);
+        //if not(Result) then raise Exception.Create('SetResolution');
 
-      Result:= SetPaperAlign((Rotation in [xrLandscape, xrRot270]), HAlign, VAlign);
-      //if not(Result) then raise Exception.Create('SetPaperAlign');
+        Result:= SetPaperAlign((Rotation in [xrLandscape, xrRot270]), HAlign, VAlign);
+        //if not(Result) then raise Exception.Create('SetPaperAlign');
 
-      if (PaperType = ptCUSTOM)
-      then Result:= SetPaperSize(PaperW, PaperH)
-      else Result:= SetPaperType(PaperType);
-      //if not(Result) then raise Exception.Create('SetPaperType');
+        if (PaperType = ptCUSTOM)
+        then Result:= SetPaperSize(PaperW, PaperH)
+        else Result:= SetPaperType(PaperType);
+        //if not(Result) then raise Exception.Create('SetPaperType');
 
-      Result:= SetDocumentHandling(DocHandling);
-      //if not(Result) then raise Exception.Create('SetDocumentHandling');
+        Result:= SetDocumentHandling(DocHandling);
+        //if not(Result) then raise Exception.Create('SetDocumentHandling');
 
-      Result:= SetBrightness(Brightness);
-      //if not(Result) then raise Exception.Create('SetBrightness');
+        Result:= SetBrightness(Brightness);
+        //if not(Result) then raise Exception.Create('SetBrightness');
 
-      Result:= SetContrast(Contrast);
-      //if not(Result) then raise Exception.Create('SetContrast');
+        Result:= SetContrast(Contrast);
+        //if not(Result) then raise Exception.Create('SetContrast');
 
-      (*
-      Result:= WIASource.SetBitDepth(BitDepth);
-      if not(Result) then raise Exception.Create('SetBitDepth');
-      *)
+        (*
+        Result:= SetBitDepth(BitDepth);
+        if not(Result) then raise Exception.Create('SetBitDepth');
+        *)
 
-      Result:= SetDataType(DataType);
-      //if not(Result) then raise Exception.Create('SetDataType');
-    end
-    else Result:= False;
+        Result:= SetDataType(DataType);
+        //if not(Result) then raise Exception.Create('SetDataType');
+      end
+      else Result:= False;
+    end;
+
+    if Result then Params.Assign(AParams);
   end;
-
-  if Result then Params.Assign(AParams);
 end;
 
 
@@ -1624,7 +1707,7 @@ var
 begin
   Result:= False;
   try
-     fSettingsDialogFunc:= @TXICA_Device.SettingsDialogFunc;
+     fSettingsDialogFunc:= TXICA_Device.SettingsDialogFunc;
 
      if Assigned(fSettingsDialogFunc)
      then Result:= fSettingsDialogFunc(Self, AInitItemValues, AOnInitDefaultValues);

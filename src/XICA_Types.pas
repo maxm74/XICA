@@ -257,6 +257,8 @@ type
     DataType: TXICA_DataType;
     DocHandling: TXICA_DocumentHandlings;
 
+    destructor Destroy; override;
+
     procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities); overload; virtual;
     procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities;
                                                 const aHAlign: TXICA_AlignHorizontal;
@@ -315,6 +317,7 @@ type
     function GeDatatType_Str(const ADataType: TXICA_DataType): String; virtual;
     function GeImageFormat_Str(const AImageFormat: TXICA_ImageFormat): String; virtual;
   end;
+  TArrayXICA_Capabilities = array of TXICA_Capabilities;
   TXICA_CapabilitiesClass = class of TXICA_Capabilities;
 
 const
@@ -416,6 +419,11 @@ begin
     DataType:= Self.DataType;
     DocHandling:= Self.DocHandling;
   end;
+end;
+
+destructor TXICA_Params.Destroy;
+begin
+  inherited Destroy;
 end;
 
 procedure TXICA_Params.CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities);

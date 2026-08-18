@@ -141,18 +141,14 @@ function XICASettingsSource_Execute(ADevice: TXICA_Device;
                                     AInitItemValues: TInitialItemValues;
                                     AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean;
 var
-  i,
-  itemCount,
-  lenAParams: Integer;
+  i, itemCount: Integer;
   curListItem: TListItem;
-  curItem: TXICA_Item;
 
 begin
   Result:= False;
   if (ADevice = nil) then exit;
 
-  if (XICASettingsDevice = nil)
-  then XICASettingsDevice:= TXICASettingsDevice.Create(nil);
+  if (XICASettingsDevice = nil) then XICASettingsDevice:= TXICASettingsDevice.Create(nil);
 
   if (XICASettingsDevice <> nil) then
   with XICASettingsDevice do
@@ -215,7 +211,7 @@ begin
     end;
 
   finally
-    XICAParams:= nil;
+    FreeParams(XICAParams);
     XICASettingsDevice.Free; XICASettingsDevice:= nil;
   end;
 end;

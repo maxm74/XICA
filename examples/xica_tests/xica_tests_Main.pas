@@ -6,8 +6,10 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
-  ExtCtrls, XICA_Types, XICA_PaperSizes, XICA_Classes, XICA, XICA_WIA,
-  XICA_SelectForm;
+  ExtCtrls,
+  XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
+  XICA_WIA,
+  XICA_SelectForm, XICA_SettingsForm;
 
 type
 
@@ -17,22 +19,23 @@ type
     btListDevices: TButton;
     btDownload: TButton;
     btUI_Select: TButton;
+    btSettings: TButton;
     edItem: TSpinEdit;
     edManager: TSpinEdit;
-    Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
     Label4: TLabel;
     Memo1: TMemo;
     edDevice: TSpinEdit;
     panDownload: TPanel;
-    edRes: TSpinEdit;
     procedure btDownloadClick(Sender: TObject);
     procedure btListDevicesClick(Sender: TObject);
+    procedure btSettingsClick(Sender: TObject);
     procedure btUI_SelectClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
+    selDevice: TXICA_Device;
 
   public
 
@@ -51,6 +54,7 @@ uses typinfo;
 
 procedure TXICATests.FormCreate(Sender: TObject);
 begin
+   selDevice:= nil;
 end;
 
 procedure TXICATests.FormDestroy(Sender: TObject);
@@ -131,10 +135,22 @@ begin
   end;
 end;
 
-procedure TXICATests.btUI_SelectClick(Sender: TObject);
-var
-   selDevice: TXICA_Device;
+procedure TXICATests.btSettingsClick(Sender: TObject);
+begin
+  if (selDevice = nil) then btUI_SelectClick(Sender);
+  if (selDevice <> nil) then
+  begin
+    if (selDevice.SettingsDeviceDialog(initCurrent)) then
+    begin
+      edManager.Value:= XICA_Manager.Find(selDevice.Owner);
+      edDevice.Value:= selDevice.Index;
+      edItem.MaxValue:= selDevice.Count-1;       //to-do Get in List may Enumerate Items
+      edItem.Value:= selDevice.SelectedIndex;
+    end;
+  end;
+end;
 
+procedure TXICATests.btUI_SelectClick(Sender: TObject);
 begin
   selDevice:= XICA_Manager.SelectDeviceDialog;
   if (selDevice <> nil) then
@@ -155,22 +171,36 @@ var
    curNameM, curNameD, curNameI: String;
 
 begin
-   XICA_Manager.Get(edManager.Value, curManager, curNameM);
-   if (curManager <> nil) then
+   if (selDevice = nil) then
    begin
-     curManager.Get(edDevice.Value, curDevice, curNameD);
-     if (curDevice <> nil) then
+     XICA_Manager.Get(edManager.Value, curManager, curNameM);
+     if (curManager <> nil) then
      begin
-       curDevice.Get(edItem.Value, curItem, curNameI);
-       if (curItem <> nil) then
+       curManager.Get(edDevice.Value, curDevice, curNameD);
+       if (curDevice <> nil) then
        begin
-         Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
-         curItem.SetResolution(edRes.Value, edRes.Value);
-         c:= curItem.Download('', 'xica_test', '.bmp', xifBMP);
-         Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
+         selDevice:= curDevice;
+         curDevice.Get(edItem.Value, curItem, curNameI);
        end;
      end;
+   end
+   else
+   begin
+     curNameM:= selDevice.Owner.Name;
+     curNameD:= selDevice.Name;
+     if (selDevice.SelectedIndex >= 0)
+     then selDevice.Get(selDevice.SelectedIndex, curItem, curNameI)
+     else curItem:= nil;
    end;
+
+   if (curItem <> nil) then
+   begin
+     Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
+     c:= curItem.Download('', 'xica_tests', '.bmp', xifBMP);
+     Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
+   end
+   else Memo1.Lines.Add('Downloading: NO Selected Item');
+
 end;
 
 end.

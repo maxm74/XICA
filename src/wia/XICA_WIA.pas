@@ -303,8 +303,13 @@ procedure WIAPropertyFlags(const pFlags: ULONG; out AFlags: TXICA_PropertyFlags)
 
 function XICA_PropertyFlags(const pFlags: TWIAPropertyFlags): TXICA_PropertyFlags;
 
+function WIADataType(const AValue: Integer): TXICA_DataType; overload;
+function WIADataType(const AValue: TXICA_DataType): Integer; overload;
+
 function WIAImageFormat(const AGUID: TGUID; out Value: TXICA_ImageFormat): Boolean;
 
+function WIADocumentHandling(const iDocumentHandling: Integer): TXICA_DocumentHandlings;
+function WIADocumentHandlingInt(const sDocumentHandling: TXICA_DocumentHandlings): Integer;
 
 {$endif}
 
@@ -400,6 +405,41 @@ begin
   if (WIAProp_LIST in pFlags) then Result:= Result+[prop_LIST];
 end;
 
+function WIADataType(const AValue: Integer): TXICA_DataType;
+begin
+  Case AValue of
+  WIA_DATA_THRESHOLD: Result:= xdtBN;
+//  WIA_DATA_DITHER: Result:= xdtDITHER;
+  WIA_DATA_GRAYSCALE: Result:= xdtGRAYSCALE;
+  WIA_DATA_COLOR: Result:= xdtCOLOR;
+//  WIA_DATA_COLOR_THRESHOLD: Result:= xdtCOLOR_THRESHOLD;
+//  WIA_DATA_COLOR_DITHER: Result:= xdtCOLOR_DITHER;
+  WIA_DATA_RAW_RGB: Result:= xdtRAW_RGB;
+  WIA_DATA_RAW_BGR: Result:= xdtRAW_BGR;
+  WIA_DATA_RAW_YUV: Result:= xdtRAW_YUV;
+  WIA_DATA_RAW_YUVK: Result:= xdtRAW_YUVK;
+  WIA_DATA_RAW_CMY: Result:= xdtRAW_CMY;
+  WIA_DATA_RAW_CMYK: Result:= xdtRAW_CMYK;
+  WIA_DATA_AUTO: Result:= xdtAUTO;
+  end;
+end;
+
+function WIADataType(const AValue: TXICA_DataType): Integer;
+begin
+  Case AValue of
+  xdtBN: Result:= WIA_DATA_THRESHOLD;
+  xdtGRAYSCALE: Result:= WIA_DATA_GRAYSCALE;
+  xdtCOLOR: Result:= WIA_DATA_COLOR;
+  xdtRAW_RGB: Result:= WIA_DATA_RAW_RGB;
+  xdtRAW_BGR: Result:= WIA_DATA_RAW_BGR;
+  xdtRAW_YUV: Result:= WIA_DATA_RAW_YUV;
+  xdtRAW_YUVK: Result:= WIA_DATA_RAW_YUVK;
+  xdtRAW_CMY: Result:= WIA_DATA_RAW_CMY;
+  xdtRAW_CMYK: Result:= WIA_DATA_RAW_CMYK;
+  xdtAUTO: Result:= WIA_DATA_AUTO;
+  end;
+end;
+
 function WIAImageFormat(const AGUID: TGUID; out Value: TXICA_ImageFormat): Boolean;
 var
    i: TXICA_ImageFormat;
@@ -417,7 +457,7 @@ begin
     end;
 end;
 
-function WIADocumentHandling(iDocumentHandling: Integer): TXICA_DocumentHandlings;
+function WIADocumentHandling(const iDocumentHandling: Integer): TXICA_DocumentHandlings;
 begin
   Result :=[];
 
@@ -434,7 +474,7 @@ begin
 //  if (iDocumentHandling and ADVANCED_DUPLEX <> 0) then Result:= Result+[wdhAdvanced_Duplex];
 end;
 
-function WIADocumentHandlingInt(sDocumentHandling: TXICA_DocumentHandlings): Integer;
+function WIADocumentHandlingInt(const sDocumentHandling: TXICA_DocumentHandlings): Integer;
 begin
   Result :=0;
 
@@ -455,8 +495,8 @@ end;
 
 procedure TXICA_WIAItem.ReleaseInterfaces;
 begin
-  pItem:= nil;
-  pProperties:= nil;
+  if (pItem <> nil) then pItem:= nil;
+  if (pProperties <> nil) then pProperties:= nil;
 end;
 
 function TXICA_WIAItem.CreateDestinationStream(FileName: String; var ppDestination: IStream): HRESULT;
@@ -1336,10 +1376,11 @@ begin
      pFlags:= GetProperty(WIA_IPS_DOCUMENT_HANDLING_SELECT, propType, iCurrent, iDefault, intValues);
      if not(WIAProp_READ in pFlags) then Exit;
 
+     Current:= WIADocumentHandling(iCurrent);
+     Default:= WIADocumentHandling(iDefault);
+
      if (WIAProp_FLAG in pFlags) then
      begin
-       Current:= WIADocumentHandling(iCurrent);
-       Default:= WIADocumentHandling(iDefault);
        Values:= WIADocumentHandling(TArrayInteger(intValues)[0]);
 
        Result:= True;
@@ -1483,8 +1524,7 @@ var
 
 begin
   Result:= GetProperty(WIA_IPA_FORMAT, propType, gValue);
-  if Result
-  then Result:= WIAImageFormat(gValue, Current);
+  if Result then Result:= WIAImageFormat(gValue, Current);
 end;
 
 function TXICA_WIAItem.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
@@ -1537,14 +1577,16 @@ end;
 function TXICA_WIAItem.GetDataType(out Current: TXICA_DataType): Boolean;
 var
    propType: TVarType;
+   iCurrent: Integer;
 
 begin
-  Result:= GetProperty(WIA_IPA_DATATYPE, propType, Current);
+  Result:= GetProperty(WIA_IPA_DATATYPE, propType, iCurrent);
+  if Result then Current:= WIADataType(iCurrent);
 end;
 
 function TXICA_WIAItem.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
 var
-   i: Integer;
+   i, iCurrent, iDefault: Integer;
    intValues: TArrayInteger;
    propType: TVarType;
    pFlags: TWIAPropertyFlags;
@@ -1554,14 +1596,15 @@ begin
   try
      Values:= [];
 
-     pFlags:= GetProperty(WIA_IPA_DATATYPE, propType, Current, Default, intValues);
+     pFlags:= GetProperty(WIA_IPA_DATATYPE, propType, iCurrent, iDefault, intValues);
      if not(WIAProp_READ in pFlags) then Exit;
 
-     { #note 5 -oMaxM : what to do if the propType is not the expected one VT_I4}
+     Current:= WIADataType(iCurrent);
+     Default:= WIADataType(iDefault);
 
      if (WIAProp_LIST in pFlags) then
      begin
-       for i:=0 to Length(intValues)-1 do Values:= Values+[TXICA_DataType(intValues[i])];
+       for i:=0 to Length(intValues)-1 do Values:= Values+[WIADataType(intValues[i])];
 
        Result:= True;
      end;
@@ -1573,7 +1616,7 @@ end;
 
 function TXICA_WIAItem.SetDataType(const Value: TXICA_DataType): Boolean;
 begin
-  Result:= SetProperty(WIA_IPA_DATATYPE, VT_I4, Value);
+  Result:= SetProperty(WIA_IPA_DATATYPE, VT_I4, WIADataType(Value));
 end;
 
 function TXICA_WIAItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
@@ -1598,12 +1641,6 @@ function TXICA_WIAItem.SetBitDepth(const Value: Integer): Boolean;
 begin
   Result:= SetProperty(WIA_IPA_DEPTH, VT_I4, Value);
 end;
-
-
-
-
-
-
 
 
 { TXICA_WiaDevice }
@@ -1783,7 +1820,7 @@ end;
 destructor TXICA_WiaDevice.Destroy;
 begin
   //Free the Interfaces
-  pRootItem:= nil;
+  if (pRootItem <> nil) then pRootItem:= nil;
 
   inherited Destroy;
 end;
@@ -2002,9 +2039,9 @@ end;
 
 destructor TXICA_WIAManager.Destroy;
 begin
-  inherited Destroy;
-
   if (pDevMgr<>nil) then pDevMgr :=nil; //Free the Interface
+
+  inherited Destroy;
 end;
 
 function TXICA_WIAManager.Enabled: Boolean;
