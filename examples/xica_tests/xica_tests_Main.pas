@@ -46,7 +46,11 @@ var
 
 implementation
 
-{$R *.lfm}
+{$ifdef FPC}
+  {$R *.lfm}
+{$else}
+  {$R *.dfm}
+{$endif}
 
 uses typinfo;
 
@@ -196,6 +200,7 @@ begin
    if (curItem <> nil) then
    begin
      Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
+     curItem.SetPages(0);
      c:= curItem.Download('', 'xica_tests', '.bmp', xifBMP);
      Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
    end

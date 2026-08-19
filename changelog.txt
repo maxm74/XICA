@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/08/19 Added Pages to Params;
+           First UI Form porting under Delphi;
+
 2026/08/14 Added CopyParams, FreeParams functions;
            Get Capabilities form Device only the first time;
 

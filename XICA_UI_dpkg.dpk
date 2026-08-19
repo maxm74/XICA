@@ -31,6 +31,14 @@ package XICA_UI_dpkg;
 
 requires
   rtl,
-  XICA_dpkg;
+  XICA_dpkg,
+  vcl,
+  vclwinx,
+  bindengine,
+  VclSmp;
+
+contains
+  XICA_SelectForm in 'src\ui\XICA_SelectForm.pas' {XICASelectForm},
+  XICA_SettingsForm in 'src\ui\XICA_SettingsForm.pas' {XICASettingsDevice};
 
 end.

@@ -225,8 +225,6 @@ object XICASelectForm: TXICASelectForm
       TabOrder = 0
       ViewStyle = vsReport
       OnAdvancedCustomDrawItem = lvSourcesAdvancedCustomDrawItem
-      OnChanging = lvSourcesChanging
-      OnCustomDrawItem = lvSourcesCustomDrawItem
       OnSelectItem = lvSourcesSelectItem
     end
   end

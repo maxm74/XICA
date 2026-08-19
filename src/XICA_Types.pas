@@ -250,6 +250,7 @@ type
     Rotation: TXICA_Rotation;
     HAlign: TXICA_AlignHorizontal;
     VAlign: TXICA_AlignVertical;
+    Pages,
     Resolution,
     Contrast,
     //BitDepth,
@@ -257,7 +258,9 @@ type
     DataType: TXICA_DataType;
     DocHandling: TXICA_DocumentHandlings;
 
-    destructor Destroy; override;
+    constructor Create;
+
+    procedure PredefinedValues; virtual;
 
     procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities); overload; virtual;
     procedure CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities;
@@ -412,6 +415,7 @@ begin
     Rotation:= Self.Rotation;
     HAlign:= Self.HAlign;
     VAlign:= Self.VAlign;
+    Pages:= Self.Pages;
     Resolution:= Self.Resolution;
     Contrast:= Self.Contrast;
     //BitDepth:= Self.BitDepth;
@@ -421,9 +425,29 @@ begin
   end;
 end;
 
-destructor TXICA_Params.Destroy;
+constructor TXICA_Params.Create;
 begin
-  inherited Destroy;
+  inherited Create;
+
+  PredefinedValues;
+end;
+
+procedure TXICA_Params.PredefinedValues;
+begin
+  NativeUI:= False;
+  PaperType:= ptMAX;
+  PaperW:= 0;
+  PaperH:= 0;
+  Rotation:= xrPortrait;
+  HAlign:= xaHLeft;
+  VAlign:= xaVTop;
+  Pages:= 0;
+  Resolution:= 200;
+  Contrast:= 0;
+  Brightness:= 0;
+  DataType:= xdtCOLOR;
+  DocHandling:= [];
+  //BitDepth:= ;
 end;
 
 procedure TXICA_Params.CopyFromCapabilitiesDefaultValues(const ACapabilities: TXICA_Capabilities);
@@ -432,12 +456,13 @@ begin
   with ACapabilities do
   begin
     PaperType:= PaperTypeDefault;
+    Pages:= 0;
     Resolution:= ResolutionDefault;
     Contrast:= ContrastDefault;
     Brightness:= BrightnessDefault;
+    DataType:= DataTypeDefault;
     DocHandling:= DocHandlingDefault;
     //BitDepth:= BitDepthDefault;
-    DataType:= DataTypeDefault;
   end;
 end;
 
@@ -455,12 +480,13 @@ begin
   with ACapabilities do
   begin
     PaperType:= PaperTypeCurrent;
+    Pages:= 0;
     Resolution:= ResolutionCurrent;
     Contrast:= ContrastCurrent;
     Brightness:= BrightnessCurrent;
+    DataType:= DataTypeCurrent;
     DocHandling:= DocHandlingCurrent;
     //BitDepth:= BitDepthCurrent;
-    DataType:= DataTypeCurrent;
   end;
 end;
 
@@ -504,7 +530,8 @@ begin
   XMLWork.GetValue(curItemPath+'Rotation', Rotation, TypeInfo(TXICA_Rotation));
   XMLWork.GetValue(curItemPath+'HAlign', HAlign, TypeInfo(TXICA_AlignHorizontal));
   XMLWork.GetValue(curItemPath+'VAlign', VAlign, TypeInfo(TXICA_AlignVertical));
-  Resolution:= XMLWork.GetValue(curItemPath+'Resolution', 100);
+  Pages:= XMLWork.GetValue(curItemPath+'Pages', 0);
+  Resolution:= XMLWork.GetValue(curItemPath+'Resolution', 200);
   Contrast:= XMLWork.GetValue(curItemPath+'Contrast', 0);
   Brightness:= XMLWork.GetValue(curItemPath+'Brightness', 0);
   XMLWork.GetValue(curItemPath+'DataType', DataType, TypeInfo(TXICA_DataType));
@@ -545,6 +572,7 @@ begin
   XMLWork.SetValue(curItemPath+'Rotation', Rotation, TypeInfo(TXICA_Rotation));
   XMLWork.SetValue(curItemPath+'HAlign', HAlign, TypeInfo(TXICA_AlignHorizontal));
   XMLWork.SetValue(curItemPath+'VAlign', VAlign, TypeInfo(TXICA_AlignVertical));
+  XMLWork.SetValue(curItemPath+'Pages', Pages);
   XMLWork.SetValue(curItemPath+'Resolution', Resolution);
   XMLWork.SetValue(curItemPath+'Contrast', Contrast);
   XMLWork.SetValue(curItemPath+'Brightness', Brightness);

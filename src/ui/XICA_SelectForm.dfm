@@ -4,8 +4,8 @@ object XICASelectForm: TXICASelectForm
   ActiveControl = lvSources
   BorderIcons = [biSystemMenu]
   Caption = 'Select XICA Device'
-  ClientHeight = 321
-  ClientWidth = 458
+  ClientHeight = 320
+  ClientWidth = 480
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,30 +16,30 @@ object XICASelectForm: TXICASelectForm
   TextHeight = 15
   object panelButtons: TPanel
     Left = 0
-    Top = 281
-    Width = 458
+    Top = 280
+    Width = 480
     Height = 40
     Align = alBottom
     BevelOuter = bvSpace
     TabOrder = 0
     DesignSize = (
-      458
+      480
       40)
     object btCancel: TBitBtn
-      Left = 286
+      Left = 308
       Top = 2
       Width = 87
-      Height = 34
+      Height = 33
       Anchors = [akRight, akBottom]
       Kind = bkCancel
       NumGlyphs = 2
       TabOrder = 0
     end
     object btOk: TBitBtn
-      Left = 377
+      Left = 398
       Top = 2
-      Width = 75
-      Height = 34
+      Width = 76
+      Height = 33
       Anchors = [akRight, akBottom]
       Kind = bkOK
       NumGlyphs = 2
@@ -49,7 +49,7 @@ object XICASelectForm: TXICASelectForm
       Left = 8
       Top = 2
       Width = 101
-      Height = 34
+      Height = 33
       Caption = 'Refresh'
       Glyph.Data = {
         36100000424D3610000000000000360000002800000020000000200000000100
@@ -189,16 +189,16 @@ object XICASelectForm: TXICASelectForm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 458
-    Height = 281
+    Width = 480
+    Height = 280
     Align = alClient
     BevelInner = bvRaised
     TabOrder = 1
     object lvSources: TListView
       Left = 2
       Top = 2
-      Width = 454
-      Height = 277
+      Width = 476
+      Height = 276
       Align = alClient
       Columns = <
         item
@@ -213,16 +213,16 @@ object XICASelectForm: TXICASelectForm
         end
         item
           Caption = 'Type'
-          MinWidth = 100
-          Width = 100
+          Width = 181
         end>
       ColumnClick = False
-      FlatScrollBars = True
       HideSelection = False
       ReadOnly = True
       RowSelect = True
       TabOrder = 0
       ViewStyle = vsReport
+      OnAdvancedCustomDrawItem = lvSourcesAdvancedCustomDrawItem
+      OnSelectItem = lvSourcesSelectItem
     end
   end
 end

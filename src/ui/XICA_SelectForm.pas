@@ -23,7 +23,7 @@ unit XICA_SelectForm;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, Buttons,
+  Types, Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, Buttons,
   ComCtrls, StdCtrls, XICA_Classes, XICA;
 
 resourcestring
@@ -42,15 +42,12 @@ type
     procedure lvSourcesAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
       var DefaultDraw: Boolean);
-    procedure lvSourcesChanging(Sender: TObject; Item: TListItem;
-      Change: TItemChange; var AllowChange: Boolean);
-    procedure lvSourcesCustomDrawItem(Sender: TCustomListView; Item: TListItem;
-      State: TCustomDrawState; var DefaultDraw: Boolean);
     procedure lvSourcesSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
   protected
     ASender: TObject;
     SelectedDevice: TXICA_Device;
+    LastSelected: TListItem;
 
     procedure FillList; overload;
     procedure FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean); overload;
@@ -107,31 +104,52 @@ end;
 procedure TXICASelectForm.lvSourcesAdvancedCustomDrawItem(
   Sender: TCustomListView; Item: TListItem; State: TCustomDrawState;
   Stage: TCustomDrawStage; var DefaultDraw: Boolean);
-begin
-end;
+var
+   LCanvas: TCanvas;
+   DisplayText: string;
+   Rect: TRect;
 
-procedure TXICASelectForm.lvSourcesChanging(Sender: TObject; Item: TListItem;
-  Change: TItemChange; var AllowChange: Boolean);
-begin
-  if (Change = ctState) and (Item.Data = nil) then
-  begin
-    AllowChange:= False;
-//    lvSources.Selected:= lvSources.LastSelected;
-  end;
-end;
-
-procedure TXICASelectForm.lvSourcesCustomDrawItem(Sender: TCustomListView;
-  Item: TListItem; State: TCustomDrawState; var DefaultDraw: Boolean);
 begin
   if (Item.Data = nil) then
   begin
-    Sender.Canvas.Font.Color:= clRed;
+    LCanvas := Sender.Canvas;
+
+    LCanvas.Brush.Color := clBtnFace;
+    LCanvas.Font.Style:= [fsBold];
+    LCanvas.Font.Color := clWindowText;
+
+    Rect:= Item.DisplayRect(drBounds);
+
+    { Fill item background }
+    LCanvas.FillRect(Rect);
+
+    { 2. Draw Item Caption (First Column) }
+    DisplayText := Item.Caption;
+    LCanvas.TextOut(Rect.Left, Rect.Top + 2, DisplayText);
+
+    { 3. Draw a Custom Horizontal Divider Line at the bottom of the row }
+    LCanvas.Pen.Color := clBlack; // Choose your divider color
+    LCanvas.MoveTo(Rect.Left, Rect.Bottom - 1);
+    LCanvas.LineTo(Rect.Right, Rect.Bottom - 1);
+
+    DefaultDraw:= False;
   end;
 end;
 
 procedure TXICASelectForm.lvSourcesSelectItem(Sender: TObject; Item: TListItem; Selected: Boolean);
 begin
-  if Selected then SelectedDevice:= TXICA_Device(Item.Data);
+  if Selected then
+  begin
+    if (Item.Data = nil)
+    then begin
+           Item.Selected:= False;
+           lvSources.Selected:= LastSelected;  //Graphically does not work really is Selected: FIND a WAY to Invalidate
+         end
+    else begin
+           LastSelected:= Item;
+           SelectedDevice:= TXICA_Device(Item.Data);
+         end;
+  end;
 end;
 
 procedure TXICASelectForm.FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean);

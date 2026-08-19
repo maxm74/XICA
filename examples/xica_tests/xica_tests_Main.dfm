@@ -1,0 +1,109 @@
+object XICATests: TXICATests
+  Left = 344
+  Height = 445
+  Top = 250
+  Width = 661
+  Caption = 'XICA Internal Tests'
+  ClientHeight = 445
+  ClientWidth = 661
+  LCLVersion = '4.99.0.0'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  object btListDevices: TButton
+    Left = 6
+    Height = 25
+    Top = 8
+    Width = 75
+    Caption = 'List Devices'
+    TabOrder = 0
+    OnClick = btListDevicesClick
+  end
+  object Memo1: TMemo
+    Left = 0
+    Height = 343
+    Top = 102
+    Width = 661
+    Align = alBottom
+    ScrollBars = ssAutoBoth
+    TabOrder = 1
+  end
+  object edDevice: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 25
+    Width = 50
+    TabOrder = 2
+  end
+  object panDownload: TPanel
+    Left = 281
+    Height = 44
+    Top = 4
+    Width = 378
+    ClientHeight = 44
+    ClientWidth = 378
+    TabOrder = 3
+    object btDownload: TButton
+      Left = 8
+      Height = 25
+      Top = 0
+      Width = 75
+      Caption = 'Download'
+      TabOrder = 0
+      OnClick = btDownloadClick
+    end
+  end
+  object Label2: TLabel
+    Left = 168
+    Height = 15
+    Top = 32
+    Width = 35
+    Caption = 'Device'
+  end
+  object Label3: TLabel
+    Left = 156
+    Height = 15
+    Top = 4
+    Width = 47
+    Caption = 'Manager'
+  end
+  object edManager: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 0
+    Width = 50
+    TabOrder = 4
+  end
+  object Label4: TLabel
+    Left = 176
+    Height = 15
+    Top = 60
+    Width = 24
+    Caption = 'Item'
+  end
+  object edItem: TSpinEdit
+    Left = 208
+    Height = 23
+    Top = 53
+    Width = 50
+    MaxValue = 2
+    TabOrder = 5
+  end
+  object btUI_Select: TButton
+    Left = 8
+    Height = 25
+    Top = 40
+    Width = 75
+    Caption = 'UI Select'
+    TabOrder = 6
+    OnClick = btUI_SelectClick
+  end
+  object btSettings: TButton
+    Left = 6
+    Height = 25
+    Top = 71
+    Width = 75
+    Caption = 'Settings'
+    TabOrder = 7
+    OnClick = btSettingsClick
+  end
+end

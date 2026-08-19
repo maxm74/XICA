@@ -3,7 +3,7 @@
         <ProjectGuid>{45E41863-EA3B-41E8-ADFC-C86AF19F6D6B}</ProjectGuid>
         <MainSource>XICA_UI_dpkg.dpk</MainSource>
         <ProjectVersion>20.1</ProjectVersion>
-        <FrameworkType>None</FrameworkType>
+        <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
@@ -76,7 +76,7 @@
         <DCC_K>false</DCC_K>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
+        <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <VerInfo_Locale>1040</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=0.0.1.0;InternalName=;LegalCopyright=Massimo Magnano;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
@@ -149,6 +149,18 @@
         </DelphiCompile>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="XICA_dpkg.dcp"/>
+        <DCCReference Include="vcl.dcp"/>
+        <DCCReference Include="vclwinx.dcp"/>
+        <DCCReference Include="bindengine.dcp"/>
+        <DCCReference Include="VclSmp.dcp"/>
+        <DCCReference Include="src\ui\XICA_SelectForm.pas">
+            <Form>XICASelectForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="src\ui\XICA_SettingsForm.pas">
+            <Form>XICASettingsDevice</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

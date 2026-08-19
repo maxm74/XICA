@@ -768,10 +768,10 @@ end;
 
 destructor TXICA_Item.Destroy;
 begin
+  inherited Destroy;
+
   if (rParams <> nil) then rParams.Free;
   if (rCapabilities <> nil) then rCapabilities.Free;
-
-  inherited Destroy;
 end;
 
 function TXICA_Item.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
@@ -1317,7 +1317,11 @@ end;
 function TXICA_Device.FreeElement(var aData: TXICA_Item): Boolean;
 begin
   try
-     FreeAndNil(aData);
+     if (aData <> nil) then
+     begin
+       aData.Free;
+       aData:= nil;
+     end;
      Result:= True;
   except
     Result:= False;
@@ -1707,7 +1711,11 @@ var
 begin
   Result:= False;
   try
+     {$ifdef fpc}
      fSettingsDialogFunc:= TXICA_Device.SettingsDialogFunc;
+     {$else}
+     fSettingsDialogFunc:= @TXICA_Device.SettingsDialogFunc;
+     {$endif}
 
      if Assigned(fSettingsDialogFunc)
      then Result:= fSettingsDialogFunc(Self, AInitItemValues, AOnInitDefaultValues);
@@ -1721,7 +1729,11 @@ end;
 function TXICA_DeviceManager.FreeElement(var aData: TXICA_Device): Boolean;
 begin
   try
-     FreeAndNil(aData);
+     if (aData <> nil) then
+     begin
+       aData.Free;
+       aData:= nil;
+     end;
      Result:= True;
   except
     Result:= False;

@@ -1615,8 +1615,12 @@ begin
 end;
 
 function TXICA_WIAItem.SetDataType(const Value: TXICA_DataType): Boolean;
+var
+   iValue: Integer;
+
 begin
-  Result:= SetProperty(WIA_IPA_DATATYPE, VT_I4, WIADataType(Value));
+  iValue:= WIADataType(Value);
+  Result:= SetProperty(WIA_IPA_DATATYPE, VT_I4, iValue);
 end;
 
 function TXICA_WIAItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
@@ -2039,9 +2043,8 @@ end;
 
 destructor TXICA_WIAManager.Destroy;
 begin
-  if (pDevMgr<>nil) then pDevMgr :=nil; //Free the Interface
-
   inherited Destroy;
+  if (pDevMgr<>nil) then pDevMgr :=nil; //Free the Interface
 end;
 
 function TXICA_WIAManager.Enabled: Boolean;

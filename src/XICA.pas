@@ -135,7 +135,11 @@ var
 begin
   Result:= nil;
   try
+     {$ifdef fpc}
      fSelectDialogFunc:= TXICA_Manager.SelectDialogFunc;
+     {$else}
+     fSelectDialogFunc:= @TXICA_Manager.SelectDialogFunc;
+     {$endif}
      if Assigned(fSelectDialogFunc) then fSelectDialogFunc(Self, Result);
 
   except
