@@ -1,12 +1,16 @@
 unit xica_tests_Main;
 
-{$mode objfpc}{$H+}
+{$ifdef FPC}
+  {$mode objfpc}
+{$endif}
+{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
+  Types, Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, Spin,
   ExtCtrls,
+  MM_OpenArrayList,
   XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
   XICA_WIA,
   XICA_SelectForm, XICA_SettingsForm;
@@ -71,11 +75,11 @@ var
    mCount,
    dCount,
    iCount: DWord;
-   m, d, i: Integer;
+   m, d, i: DWord;
    curManager: TXICA_DeviceManager;
    curDevice: TXICA_Device;
    curItem: TXICA_Item;
-   curName: String;
+   curName: TKeyString;
 
    resMin, resMax: Integer;
    pDefWidth, pDefHeight,
@@ -172,7 +176,7 @@ var
    curManager: TXICA_DeviceManager;
    curDevice: TXICA_Device;
    curItem: TXICA_Item;
-   curNameM, curNameD, curNameI: String;
+   curNameM, curNameD, curNameI: TKeyString;
 
 begin
    if (selDevice = nil) then

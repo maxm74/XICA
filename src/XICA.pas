@@ -135,11 +135,7 @@ var
 begin
   Result:= nil;
   try
-     {$ifdef fpc}
-     fSelectDialogFunc:= TXICA_Manager.SelectDialogFunc;
-     {$else}
-     fSelectDialogFunc:= @TXICA_Manager.SelectDialogFunc;
-     {$endif}
+     fSelectDialogFunc:= TXICA_Manager.SelectDialogFunc(); //Don't remove the brackets, Delphi doesn't get along very well without it
      if Assigned(fSelectDialogFunc) then fSelectDialogFunc(Self, Result);
 
   except

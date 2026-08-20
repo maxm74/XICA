@@ -1711,12 +1711,7 @@ var
 begin
   Result:= False;
   try
-     {$ifdef fpc}
-     fSettingsDialogFunc:= TXICA_Device.SettingsDialogFunc;
-     {$else}
-     fSettingsDialogFunc:= @TXICA_Device.SettingsDialogFunc;
-     {$endif}
-
+     fSettingsDialogFunc:= TXICA_Device.SettingsDialogFunc(); //Don't remove the brackets, Delphi doesn't get along very well without it
      if Assigned(fSettingsDialogFunc)
      then Result:= fSettingsDialogFunc(Self, AInitItemValues, AOnInitDefaultValues);
 

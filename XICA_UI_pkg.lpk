@@ -18,7 +18,7 @@
         </Optimizations>
       </CodeGeneration>
     </CompilerOptions>
-    <Description Value="XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi"/>
+    <Description Value="XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi - User Interface"/>
     <License Value="GPL 3.0"/>
     <Version Release="1"/>
     <Files>

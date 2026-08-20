@@ -38,12 +38,14 @@ type
     lvSources: TListView;
     Panel1: TPanel;
     panelButtons: TPanel;
+    tmSelected: TTimer;
     procedure btRefreshClick(Sender: TObject);
     procedure lvSourcesAdvancedCustomDrawItem(Sender: TCustomListView;
       Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
       var DefaultDraw: Boolean);
     procedure lvSourcesSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
+    procedure tmSelectedTimer(Sender: TObject);
   protected
     ASender: TObject;
     SelectedDevice: TXICA_Device;
@@ -142,14 +144,22 @@ begin
   begin
     if (Item.Data = nil)
     then begin
-           Item.Selected:= False;
-           lvSources.Selected:= LastSelected;  //Graphically does not work really is Selected: FIND a WAY to Invalidate
+           //Item.Selected:= False;
+
+           //it doesn't update graphically I start a timer that will do it
+           tmSelected.Enabled:= True;
          end
-    else begin
+    else if (Item <> LastSelected) then begin
            LastSelected:= Item;
            SelectedDevice:= TXICA_Device(Item.Data);
          end;
   end;
+end;
+
+procedure TXICASelectForm.tmSelectedTimer(Sender: TObject);
+begin
+  lvSources.Selected:= LastSelected;
+  tmSelected.Enabled:= False;
 end;
 
 procedure TXICASelectForm.FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean);

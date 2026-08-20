@@ -225,4 +225,11 @@ object XICASelectForm: TXICASelectForm
       OnSelectItem = lvSourcesSelectItem
     end
   end
+  object tmSelected: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = tmSelectedTimer
+    Left = 264
+    Top = 288
+  end  
 end
