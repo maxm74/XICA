@@ -93,7 +93,7 @@
         <DCC_Description>XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi</DCC_Description>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <SanitizedProjectName>XICA_UI_dpkg</SanitizedProjectName>
-        <DCC_UnitSearchPath>.\src\;.\src\wia\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>.\src\;.\src\wia\;.\src\twain\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>

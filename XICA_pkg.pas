@@ -9,7 +9,7 @@ interface
 
 uses
   XICA_PaperSizes, XICA_Types, XICA_Classes, XICA, XICA_WIA, 
-  DelphiCompatibility, MM_OpenArrayList;
+  DelphiCompatibility, MM_OpenArrayList, XICA_Twain;
 
 implementation
 

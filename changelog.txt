@@ -1,7 +1,8 @@
 XICA CHANGE LOG
 ======================
 
-2026/08/20 Using brackets in UI class Dialog Funcs (Delphi doesn't get along very well without this);
+2026/08/20 Added Empty Twain Manager;
+           Using brackets in UI class Dialog Funcs (Delphi doesn't get along very well without this);
            Delphi Port of Internal Test;
 
 2026/08/19 Added Pages to Params;

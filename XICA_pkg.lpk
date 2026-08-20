@@ -9,7 +9,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <OtherUnitFiles Value="src;src\wia"/>
+        <OtherUnitFiles Value="src;src\wia;src\twain"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(BuildMode)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -49,6 +49,10 @@
       <Item>
         <Filename Value="src\MM_OpenArrayList.pas"/>
         <UnitName Value="MM_OpenArrayList"/>
+      </Item>
+      <Item>
+        <Filename Value="src\twain\XICA_Twain.pas"/>
+        <UnitName Value="XICA_Twain"/>
       </Item>
     </Files>
     <i18n>

@@ -41,6 +41,7 @@ contains
   XICA_WIA in 'src\wia\XICA_WIA.pas',
   MM_OpenArrayList in 'src\MM_OpenArrayList.pas',
   DelphiCompatibility in 'src\DelphiCompatibility.pas',
-  DelphiXMLConfig in 'src\DelphiXMLConfig.pas';
+  DelphiXMLConfig in 'src\DelphiXMLConfig.pas',
+  XICA_Twain in 'src\twain\XICA_Twain.pas';
 
 end.

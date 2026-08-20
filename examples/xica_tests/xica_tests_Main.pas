@@ -12,7 +12,7 @@ uses
   ExtCtrls,
   MM_OpenArrayList,
   XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
-  XICA_WIA,
+  XICA_WIA, XICA_Twain,
   XICA_SelectForm, XICA_SettingsForm;
 
 type
@@ -75,7 +75,7 @@ var
    mCount,
    dCount,
    iCount: DWord;
-   m, d, i: DWord;
+   m, d, i: Integer;
    curManager: TXICA_DeviceManager;
    curDevice: TXICA_Device;
    curItem: TXICA_Item;

@@ -93,7 +93,7 @@
         <DCC_Description>XICA (Cross-platform Image Capture Architecture) for Lazarus (Free Pascal) and Delphi</DCC_Description>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <SanitizedProjectName>XICA_dpkg</SanitizedProjectName>
-        <DCC_UnitSearchPath>.\src\;.\src\wia\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>.\src\;.\src\wia\;.\src\twain\;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
@@ -167,6 +167,7 @@
         <DCCReference Include="src\MM_OpenArrayList.pas"/>
         <DCCReference Include="src\DelphiCompatibility.pas"/>
         <DCCReference Include="src\DelphiXMLConfig.pas"/>
+        <DCCReference Include="src\twain\XICA_Twain.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -209,6 +210,12 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\Win64\XICA_dpkg.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>XICA_dpkg.bpl</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\23.0\Bpl\Win64\XICA_dpkg.bpl" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>XICA_dpkg.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
