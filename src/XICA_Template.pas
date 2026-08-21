@@ -1,12 +1,12 @@
 (*******************************************************************************
 *                XICA (Cross-platform Image Capture Architecture)              *
 *                                                                              *
-*  FILE: XICA_Twain.pas                                                        *
+*  FILE: XICA_Template.pas                                                     *
 *                                                                              *
 *  VERSION:     0.0.1                                                          *
 *                                                                              *
 *  DESCRIPTION:                                                                *
-*    Twain implementation                                                      *
+*    A Base Empty Structure for Copy/Paste                                     *
 *                                                                              *
 ********************************************************************************
 *                                                                              *
@@ -15,7 +15,7 @@
 *  See changelog.txt for Change Log                                            *
 *                                                                              *
 *******************************************************************************)
-unit XICA_Twain;
+unit XICA_Template;
 
 {$ifdef fpc}
   {$mode delphi}
@@ -30,13 +30,12 @@ interface
 
 uses Windows, Classes, SysUtils,
     {$ifdef fpc}testutils,{$else}DelphiCompatibility,{$endif}
-     Twain,
      XICA_Types, XICA_Classes;
 
 type
-  { TXICA_TwainItem }
+  { TXICA_TemplateItem }
 
-  TXICA_TwainItem = class(TXICA_Item)
+  TXICA_TemplateItem = class(TXICA_Item)
   protected
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
@@ -135,9 +134,9 @@ type
     function SetBitDepth(const Value: Integer): Boolean; override;
   end;
 
-  { TXICA_TwainDevice }
+  { TXICA_TemplateDevice }
 
-  TXICA_TwainDevice = class(TXICA_Device)
+  TXICA_TemplateDevice = class(TXICA_Device)
   protected
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
@@ -156,36 +155,24 @@ type
 
   end;
 
-  { TXICA_TwainManager }
+  { TXICA_TemplateManager }
 
-  TXICA_TwainManager = class(TXICA_DeviceManager)
+  TXICA_TemplateManager = class(TXICA_DeviceManager)
   protected
-    TwainDirectory: String;
-    m_DSMState: Integer;
+    TemplateDirectory: String;
+    rLibrayLoaded: Boolean;
     rLibHandle: HInst;
-    gDSM_Entry: TW_ENTRYPOINT;
-    lRes: HResult;
-    VirtualWindow: THandle;
+    rTemplateProc: TDSMEntryProc;
+    lres: HResult;
+
+    //Loads Template library and set rLibrayLoaded if it loaded sucessfully
+    procedure LoadTemplateLibrary; virtual;
+
+    //Unloads Template library
+    procedure UnloadTemplateLibrary; virtual;
 
     //Enumerate the avaliable devices
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; override;
-
-    //Loads twain library and set rLibrayLoaded if it loaded sucessfully
-    procedure LoadDSMLibrary; virtual;
-
-    //Unloads twain library
-    procedure UnloadDSMLibrary; virtual;
-
-    function DSM_Alloc(_size: TW_UINT32): TW_HANDLE;
-    procedure DSM_Free(_hMemory: TW_HANDLE);
-    function DSM_LockMemory(_hMemory: TW_HANDLE): TW_MEMREF;
-    procedure DSM_UnlockMemory(_hMemory: TW_HANDLE);
-
-    procedure connectDSM;
-    procedure disconnectDSM;
-
-    procedure CreateVirtualWindow; virtual;
-    procedure DestroyVirtualWindow; virtual;
 
   public
     constructor Create(const AEnumAll: Boolean = True); override;
@@ -197,8 +184,6 @@ type
     class function Name: String; override;
   end;
 
-var
-   AppIdentity : TW_IDENTITY;
 
 {$endif}
 
@@ -209,26 +194,22 @@ implementation
 uses XICA;
 
 const
-  {Name of the Twain library for 32 bits enviroment}
-  TWAINLIBRARY_64 = 'TWAINDSM.DLL';
-  TWAINLIBRARY_32 = 'TWAIN_32.DLL';
+  {Name of the Template library for 32 bits enviroment}
+  TemplateLIBRARY_64 = 'ALibrary64.DLL';
+  TemplateLIBRARY_32 = 'ALibrary32.DLL';
 
   {$IFDEF WIN64}
-  TWAINLIBRARY = TWAINLIBRARY_64;
+  TemplateLIBRARY = TemplateLIBRARY_64;
   {$ELSE}
-  TWAINLIBRARY = TWAINLIBRARY_32;
+  TemplateLIBRARY = TemplateLIBRARY_32;
   {$ENDIF}
-
-  VirtualWinClassName: array[0..17] of WideChar =
-  ('X', 'I', 'C', 'A', '_', 'T', 'w', 'a', 'i', 'n', 'M', 'a', 'n', 'a', 'g', 'e', 'r', #0);
-
 
 type
   //Kinds of directories to be obtained with GetCustomDirectory
   TDirectoryKind = (dkWindows, dkSystem, dkCurrent, dkApplication, dkTemp);
 
 var
-   Twain_Manager: TXICA_TwainManager = nil;
+   Template_Manager: TXICA_TemplateManager = nil;
 
 
 //Returns Windows directories
@@ -252,8 +233,8 @@ begin
   end;
 end;
 
-//Returns full Twain directory (usually in Windows directory)
-function GetTwainDirectory(const ALib: String = TWAINLIBRARY): String;
+//Returns full Template directory (usually in Windows directory)
+function GetTemplateDirectory(const ALib: String = TemplateLIBRARY): String;
 var
    i: TDirectoryKind;
    Dir: String;
@@ -276,14 +257,14 @@ begin
 end;
 
 
-{ TXICA_TwainItem }
+{ TXICA_TemplateItem }
 
-destructor TXICA_TwainItem.Destroy;
+destructor TXICA_TemplateItem.Destroy;
 begin
   inherited Destroy;
 end;
 
-function TXICA_TwainItem.Download(APath, AFileName, AExt: String): Integer;
+function TXICA_TemplateItem.Download(APath, AFileName, AExt: String): Integer;
 begin
   Result:= 0;
 
@@ -316,61 +297,43 @@ begin
 //  end;
 end;
 
-function TXICA_TwainItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+function TXICA_TemplateItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
 end;
 
-function TXICA_TwainItem.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+function TXICA_TemplateItem.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
 end;
 
-function TXICA_TwainItem.GetResolution(out AXRes, AYRes: Integer): Boolean;
+function TXICA_TemplateItem.GetResolution(out AXRes, AYRes: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
+function TXICA_TemplateItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetPaperRect(out Current: TRect): Boolean;
+function TXICA_TemplateItem.GetPaperRect(out Current: TRect): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetPaperRect(out Current, Default: TRect): Boolean;
+function TXICA_TemplateItem.GetPaperRect(out Current, Default: TRect): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
+function TXICA_TemplateItem.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem._GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
+function TXICA_TemplateItem._GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetRotation(out Value: TXICA_Rotation): Boolean;
+function TXICA_TemplateItem.GetRotation(out Value: TXICA_Rotation): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
-begin
-  Result:= False;
-  try
-     Values:=[];
-
-  finally
-  end;
-end;
-
-function TXICA_TwainItem.SetRotation(const Value: TXICA_Rotation): Boolean;
-begin
-end;
-
-function TXICA_TwainItem.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
-begin
-end;
-
-function TXICA_TwainItem.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
+function TXICA_TemplateItem.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
 begin
   Result:= False;
   try
@@ -380,51 +343,69 @@ begin
   end;
 end;
 
-function TXICA_TwainItem.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
+function TXICA_TemplateItem.SetRotation(const Value: TXICA_Rotation): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetPages(out Current: Integer): Boolean;
+function TXICA_TemplateItem.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_TemplateItem.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
+begin
+  Result:= False;
+  try
+     Values:=[];
+
+  finally
+  end;
+end;
+
+function TXICA_TemplateItem.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetPages(const Value: Integer): Boolean;
+function TXICA_TemplateItem.GetPages(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetBrightness(out Current: Integer): Boolean;
+function TXICA_TemplateItem.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_TemplateItem.SetPages(const Value: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetBrightness(const Value: Integer): Boolean;
+function TXICA_TemplateItem.GetBrightness(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetContrast(out Current: Integer): Boolean;
+function TXICA_TemplateItem.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_TemplateItem.SetBrightness(const Value: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetContrast(const Value: Integer): Boolean;
+function TXICA_TemplateItem.GetContrast(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
+function TXICA_TemplateItem.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
+function TXICA_TemplateItem.SetContrast(const Value: Integer): Boolean;
+begin
+end;
+
+function TXICA_TemplateItem.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
+begin
+end;
+
+function TXICA_TemplateItem.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
 begin
   Result:= False;
   try
@@ -434,15 +415,15 @@ begin
   end;
 end;
 
-function TXICA_TwainItem.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
+function TXICA_TemplateItem.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetDataType(out Current: TXICA_DataType): Boolean;
+function TXICA_TemplateItem.GetDataType(out Current: TXICA_DataType): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
+function TXICA_TemplateItem.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
 begin
   Result:= False;
   try
@@ -452,31 +433,31 @@ begin
   end;
 end;
 
-function TXICA_TwainItem.SetDataType(const Value: TXICA_DataType): Boolean;
+function TXICA_TemplateItem.SetDataType(const Value: TXICA_DataType): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
+function TXICA_TemplateItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.GetBitDepth(out Current: Integer): Boolean;
+function TXICA_TemplateItem.GetBitDepth(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TwainItem.SetBitDepth(const Value: Integer): Boolean;
+function TXICA_TemplateItem.SetBitDepth(const Value: Integer): Boolean;
 begin
 end;
 
 
-{ TXICA_TwainDevice }
+{ TXICA_TemplateDevice }
 
-function TXICA_TwainDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
+function TXICA_TemplateDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
    iCount,
    i: Integer;
    curName: String;
-   curItem: TXICA_TwainItem;
+   curItem: TXICA_TemplateItem;
 
 begin
   Result:= False;
@@ -509,12 +490,12 @@ begin
 
             if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curName)
             then begin
-                   curItem:= TXICA_TwainItem(ALastSelected);
+                   curItem:= TXICA_TemplateItem(ALastSelected);
                    Add(curName, ALastSelected);
                    SelectedIndex:= i;
                  end
             else begin
-                   curItem:= TXICA_TwainItem.Create(Self, i, curName);
+                   curItem:= TXICA_TemplateItem.Create(Self, i, curName);
                    Add(curName, curItem);
                  end;
         end
@@ -524,7 +505,7 @@ begin
 //      Result :=True;
 end;
 
-function TXICA_TwainDevice.GetType_Str: String;
+function TXICA_TemplateDevice.GetType_Str: String;
 begin
   if (rType in [devTypeUnknown..devTypeDigitalCamera])
   then Result:= inherited GetType_Str
@@ -535,17 +516,17 @@ begin
 *)
 end;
 
-constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
+constructor TXICA_TemplateDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 end;
 
-destructor TXICA_TwainDevice.Destroy;
+destructor TXICA_TemplateDevice.Destroy;
 begin
   inherited Destroy;
 end;
 
-function TXICA_TwainDevice.DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
+function TXICA_TemplateDevice.DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
                                           APath, AFileName: String;
                                           out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer;
 var
@@ -561,7 +542,7 @@ begin
   Result:= 0;
   DownloadedFiles:= nil;
 
-  if (TXICA_TwainManager(rOwner) = nil) (*or (TXICA_TwainManager(rOwner).pDevMgr = nil)*) then exit;
+  if (TXICA_TemplateManager(rOwner) = nil) (*or (TXICA_TemplateManager(rOwner).pDevMgr = nil)*) then exit;
 
   try
      if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
@@ -583,7 +564,7 @@ begin
 //     itemArray:= nil;
 
 (*
-     lres:= TXICA_TwainManager(rOwner).pDevMgr.GetImageDlg(dlgFlags, StringToOleStr(Self.ID), hwndParent,
+     lres:= TXICA_TemplateManager(rOwner).pDevMgr.GetImageDlg(dlgFlags, StringToOleStr(Self.ID), hwndParent,
                                                          StringToOleStr(rDownload_Path), StringToOleStr(rDownload_FileName),
                                                          rDownload_Count, filePaths, itemArray);
 *)
@@ -607,31 +588,29 @@ begin
 end;
 
 
-{ TXICA_TwainManager }
+{ TXICA_TemplateManager }
 
-procedure TXICA_TwainManager.LoadDSMLibrary;
+procedure TXICA_TemplateManager.LoadTemplateLibrary;
 begin
-  if (m_DSMState < 2) then
+  if not(rLibrayLoaded) then
   try
      rLibHandle:= 0;
-     DSM_Entry:= nil;
+     rTemplateProc:= nil;
 
-     //Searches for Twain directory
-     TwainDirectory:= GetTwainDirectory;
+     //Searches for Template directory
+     TemplateDirectory:= GetTemplateDirectory;
 
-     if (TwainDirectory <> '') then
+     if (TemplateDirectory <> '') then
      begin
-       rLibHandle:= LoadLibrary(PChar(TwainDirectory + TWAINLIBRARY));
+       rLibHandle:= LoadLibrary(PChar(TemplateDirectory + TemplateLIBRARY));
        if (rLibHandle <> 0) then
        begin
-         //Obtains Twain proc function
-         DSM_Entry:= GetProcAddress(rLibHandle, 'DSM_Entry');
-         if Assigned(DSM_Entry)
-         then m_DSMState:= 2
-         else m_DSMState:= 1;
+         //Obtains Template proc function
+         rTemplateProc:= GetProcAddress(rLibHandle, MAKEINTRESOURCE(1));
+         rLibrayLoaded:= Assigned(rTemplateProc);
 
          //If the function was not obtained, also free the library
-         if (m_DSMState < 2) then
+         if not(rLibrayLoaded) then
          begin
            FreeLibrary(rLibHandle);
            rLibHandle:= 0;
@@ -641,194 +620,34 @@ begin
 
   except
     rLibHandle:= 0;
-    m_DSMState:= 1;
-    DSM_Entry:= nil;
+    rLibrayLoaded:= False;
+    rTemplateProc:= nil;
   end;
 end;
 
-procedure TXICA_TwainManager.UnloadDSMLibrary;
+procedure TXICA_TemplateManager.UnloadTemplateLibrary;
 begin
-  if (m_DSMState > 1) then
+  if rLibrayLoaded then
   try
      //Unloads the source manager}
-     if (m_DSMState > 2) then disconnectDSM;
+     //SourceManagerLoaded := FALSE;
 
      if (rLibHandle <> 0) then FreeLibrary(rLibHandle);
      rLibHandle:= 0;
-     m_DSMState:= 1;
-     DSM_Entry:= nil;
+     rLibrayLoaded:= False;
+     rTemplateProc:= nil;
 
   except
 
   end;
 end;
 
-function TXICA_TwainManager.DSM_Alloc(_size: TW_UINT32): TW_HANDLE;
-begin
-  if Assigned(gDSM_Entry.DSM_MemAllocate)
-  then Result:= gDSM_Entry.DSM_MemAllocate(_size)
-  else Result:= GlobalAlloc(GPTR, _size);
-end;
-
-procedure TXICA_TwainManager.DSM_Free(_hMemory: TW_HANDLE);
-begin
-  if Assigned(gDSM_Entry.DSM_MemFree)
-  then gDSM_Entry.DSM_MemFree(_hMemory)
-  else GlobalFree(_hMemory);
-end;
-
-function TXICA_TwainManager.DSM_LockMemory(_hMemory: TW_HANDLE): TW_MEMREF;
-begin
-  if Assigned(gDSM_Entry.DSM_MemLock)
-  then Result:= gDSM_Entry.DSM_MemLock(_hMemory)
-  else Result:= GlobalLock(_hMemory);
-end;
-
-procedure TXICA_TwainManager.DSM_UnlockMemory(_hMemory: TW_HANDLE);
-begin
-  if Assigned(gDSM_Entry.DSM_MemUnlock)
-  then gDSM_Entry.DSM_MemUnlock(_hMemory)
-  else GlobalUnlock(_hMemory);
-end;
-
-procedure TXICA_TwainManager.connectDSM;
-begin
-  if (m_DSMState > 2) then exit;  //Already Opened
-  if (m_DSMState < 2) then LoadDSMLibrary; //Load Library First
-  if (m_DSMState > 1) then
-  begin
-    CreateVirtualWindow;
-
-    if (DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_PARENT, MSG_OPENDSM, @VirtualWindow) = TWRC_SUCCESS) then
-    begin
-      if not(((AppIdentity.SupportedGroups and DF_DSM2) = DF_DSM2) and
-             (DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_ENTRYPOINT, MSG_GET, @gDSM_Entry) = TWRC_SUCCESS))
-      then FillChar(gDSM_Entry, SizeOf(gDSM_Entry), 0);
-
-      m_DSMState:= 3;
-    end;
-  end;
-end;
-
-procedure TXICA_TwainManager.disconnectDSM;
-begin
-  if (m_DSMState < 3) then exit;  //Not Opened
-  if (DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_PARENT, MSG_CLOSEDSM, @VirtualWindow) = TWRC_SUCCESS) then
-  begin
-    DestroyVirtualWindow;
-
-    m_DSMState:= 2;
-  end;
-end;
-
-{Virtual window procedure handler}
-function VirtualWinProc(Handle: THandle; uMsg: UINT; wParam: WPARAM; lParam: LPARAM): LResult; stdcall;
-
-  {Returns the TCustomDelphiTwain object}
-  function Obj: TXICA_TwainManager;
-  begin
-    {%H-}Result := Pointer(PtrUInt(GetWindowLong(Handle, GWL_USERDATA)));
-  end {function};
-
-var
-  Twain: TXICA_TwainManager;
-  i    : Integer;
-  Msg  : TMsg;
-begin
-  {Tests for the message}
-  case uMsg of
-    {Creation of the window}
-    WM_CREATE:
-      {Stores the TCustomDelphiTwain object handle}
-      with {%H-}pCreateStruct(lParam)^ do
-        SetWindowLong(Handle, GWL_USERDATA, {%H-}PtrUInt(lpCreateParams));
-    {case} else
-    begin
-      {Try to obtain the current object pointer}
-      Twain := Obj;
-(*
-      if Assigned(Twain) then
-        {If there are sources loaded, we need to verify}
-        {this message}
-       if (Twain.SourcesLoaded > 0) then
-        begin
-          {Convert parameters to a TMsg}
-          Msg := MakeMsg(Handle, uMsg, wParam, lParam);
-          {Tell about this message}
-          FOR i := 0 TO Twain.SourceCount - 1 DO
-            if ((Twain.Source[i].Loaded) and (Twain.Source[i].Enabled)) then
-              if Twain.Source[i].ProcessMessage(Msg) then
-              begin
-                {Case this was a message from the source, there is}
-                {no need for the default procedure to process}
-                Result := 0;
-                Exit;
-              end;
-
-        end {if (Twain.SourcesLoaded > 0)}
-*)
-
-    end {case Else}
-  end {case uMsg of};
-
-  {Calls method to handle}
-  Result := DefWindowProc(Handle, uMsg, wParam, lParam);
-end;
-
-procedure TXICA_TwainManager.CreateVirtualWindow;
-var
-  WindowClassW: WndClassW;
-
-begin
-  if (Windows.GetClassInfoW(HInstance, @VirtualWinClassName, {$IFDEF FPC}@{$ENDIF}WindowClassW)=False) then
-  begin
-    with WindowClassW do
-    begin
-      Style :=0;
-      LPFnWndProc := @VirtualWinProc;
-      CbClsExtra := 0;
-      CbWndExtra := 0;
-      hIcon := 0;
-      hCursor := 0;
-      hbrBackground := 0;
-      LPSzMenuName := nil;
-      LPSzClassName := @VirtualWinClassName;
-    end;
-    WindowClassW.hInstance :=HInstance;
-    Windows.RegisterClassW(WindowClassW);
-  end;
-
-  VirtualWindow :=CreateWindowExW(0, @VirtualWinClassName, @VirtualWinClassName,
-                                  WS_POPUP, 0, 0, 0, 0, 0, 0, HInstance, Pointer(PtrUint(Self)));
-end;
-
-procedure TXICA_TwainManager.DestroyVirtualWindow;
-begin
-  DestroyWindow(VirtualWindow);
-end;
-
-function TXICA_TwainManager._EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean;
+function TXICA_TemplateManager._EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean;
 var
   i:integer;
   devCount: ULONG;
-  curDevice: TXICA_TwainDevice;
-  curIdentity: TW_IDENTITY;
+  curDevice: TXICA_TemplateDevice;
   curName: String;
-
-  procedure CreateDevice;
-  begin
-    if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curIdentity.ProductName)
-    then begin
-           curDevice:= TXICA_TwainDevice(ALastSelected);
-           Add(curIdentity.ProductName, ALastSelected);
-           SelectedIndex:= i;
-           //curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
-         end
-    else begin
-           curDevice:= TXICA_TwainDevice.Create(Self, i, curIdentity.ProductName);
-           Add(curIdentity.ProductName, curDevice);
-         end;
-  end;
 
 begin
   Result:= False;
@@ -836,25 +655,38 @@ begin
 (*  if (pDevMgr = nil) then pDevMgr:= WIA_LH.IWiaDevMgr2(CreateDevManager);
   if (pDevMgr <> nil) then
 *)
-  connectDSM;
-  if (m_DSMState > 2) then
   begin
-    devCount:= 0;
-    FillChar(curIdentity, Sizeof(curIdentity), 0);
-    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_GETFIRST, @curIdentity);
-    if (lRes = TWRC_SUCCESS) then
-    begin
-      devCount:= 1;
-      CreateDevice;
+    (*
+    if EnumAll
+    then lres :=pDevMgr.EnumDeviceInfo(WIA_DEVINFO_ENUM_ALL, ppIEnum)
+    else lres :=pDevMgr.EnumDeviceInfo(WIA_DEVINFO_ENUM_LOCAL, ppIEnum);
+    *)
 
-      //See TCustomDelphiTwain.EnumerateDevices repeat until
-      (*
+    if (lres=S_OK) then
+    begin
+      //lres :=ppIEnum.GetCount(devCount);
+
+      devCount:= 0;
+
+      if (lres<>S_OK) then Exception.Create('Number of Template Devices not available');
+
       if (devCount > 0) then
       begin
         for i:=0 to devCount-1 do
         begin
+                 if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.ID = curName)
+                 then begin
+                        curDevice:= TXICA_TemplateDevice(ALastSelected);
+                        Add(curName, ALastSelected);
+                        SelectedIndex:= i;
+                        //curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
+                      end
+                 else begin
+                        curDevice:= TXICA_TemplateDevice.Create(Self, i, curName);
+                        Add(curName, curDevice);
+                      end;
 
-
+          (*
           if (VT_BSTR = pPropVar[1].vt)
           then curDevice.rManufacturer :=pPropVar[1].bstrVal
           else Exception.Create('Manufacturer of Device '+IntToStr(i)+' not String');
@@ -873,62 +705,44 @@ begin
 
           pWiaPropertyStorage:= nil;
 
-
+          *)
         end;
-        *)
 
 
         Result :=True;
 
-      //end;
+      end;
     end;
   end;
 end;
 
-constructor TXICA_TwainManager.Create(const AEnumAll: Boolean = True);
+constructor TXICA_TemplateManager.Create(const AEnumAll: Boolean = True);
 begin
   inherited Create(AEnumAll);
 
-  m_DSMState:= 1;
-  FillChar(gDSM_Entry, SizeOf(gDSM_Entry), 0);
-  VirtualWindow:= 0;
-
-  LoadDSMLibrary;
+  LoadTemplateLibrary;
 end;
 
-destructor TXICA_TwainManager.Destroy;
+destructor TXICA_TemplateManager.Destroy;
 begin
+  UnloadTemplateLibrary;
+
   inherited Destroy;
-
-  UnloadDSMLibrary;
 end;
 
-function TXICA_TwainManager.Enabled: Boolean;
+function TXICA_TemplateManager.Enabled: Boolean;
 begin
-  Result:= (m_DSMState > 1);
+  Result:= rLibrayLoaded;
 end;
 
-class function TXICA_TwainManager.Name: String;
+class function TXICA_TemplateManager.Name: String;
 begin
-  Result:= 'Twain';
+  Result:= 'Template';
 end;
 
 initialization
-  FillChar(AppIdentity, SizeOf(AppIdentity), 0);
-  AppIdentity.Version.MajorNum:= 0;
-  AppIdentity.Version.MinorNum:= 1;
-  AppIdentity.Version.Language:= TWLG_USERLOCALE;
-  AppIdentity.Version.Country:= TWCY_ITALY;
-  AppIdentity.Version.Info:= '0.0.1';
-  AppIdentity.ProtocolMajor:= TWON_PROTOCOLMAJOR;
-  AppIdentity.ProtocolMinor:= TWON_PROTOCOLMINOR;
-  AppIdentity.SupportedGroups:= DF_APP2 or DG_IMAGE or DG_CONTROL;
-  AppIdentity.Manufacturer:= 'MaxM';
-  AppIdentity.ProductFamily:= 'XICA';
-  AppIdentity.ProductName:= 'XICA Twain';
-
-  Twain_Manager:= TXICA_TwainManager.Create(XICA_EnumAllDevices);
-  XICA_RegisterDeviceManager(TXICA_TwainManager.Name, Twain_Manager);
+  Template_Manager:= TXICA_TemplateManager.Create(XICA_EnumAllDevices);
+  XICA_RegisterDeviceManager(TXICA_TemplateManager.Name, Template_Manager);
 
 {$endif}
 end.
