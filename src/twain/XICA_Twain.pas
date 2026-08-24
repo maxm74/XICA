@@ -139,13 +139,22 @@ type
 
   TXICA_TwainDevice = class(TXICA_Device)
   protected
+    rOpened: Boolean;
+    rIdentity: TW_IDENTITY;
+
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
     function GetType_Str: String; override;
 
+    function ProcessMessage(const Msg: TMsg): Boolean; virtual;
+
+    procedure OpenDS; virtual;
+    procedure CloseDS; virtual;
+
   public
-    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); override;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); overload; override;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceIdentity: TW_IDENTITY); overload; virtual;
     destructor Destroy; override;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
@@ -154,6 +163,8 @@ type
                               APath, AFileName: String;
                               out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; override;
 
+    property Opened: Boolean read rOpened;
+    property Identity: TW_IDENTITY read rIdentity;
   end;
 
   { TXICA_TwainManager }
@@ -181,8 +192,8 @@ type
     function DSM_LockMemory(_hMemory: TW_HANDLE): TW_MEMREF;
     procedure DSM_UnlockMemory(_hMemory: TW_HANDLE);
 
-    procedure connectDSM;
-    procedure disconnectDSM;
+    procedure connectDSM; virtual;
+    procedure disconnectDSM; virtual;
 
     procedure CreateVirtualWindow; virtual;
     procedure DestroyVirtualWindow; virtual;
@@ -275,6 +286,20 @@ begin
   end;
 end;
 
+//Returns a TMsg structure from a Message Params
+function MakeMsg(const Handle: THandle; uMsg: UINT; wParam: WPARAM; lParam: LPARAM): TMsg;
+begin
+  Result.hwnd := Handle;
+  Result.message := uMsg;
+  Result.wParam := wParam;
+  Result.lParam := lParam;
+  GetCursorPos(Result.pt);
+end;
+
+function MakeID(AIdentity: TW_IDENTITY): String;
+begin
+  Result:= AIdentity.Manufacturer+'-'+AIdentity.ProductName;
+end;
 
 { TXICA_TwainItem }
 
@@ -473,55 +498,40 @@ end;
 
 function TXICA_TwainDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
-   iCount,
-   i: Integer;
    curName: String;
    curItem: TXICA_TwainItem;
 
 begin
   Result:= False;
 
-(*  if (GetRootItemIntf = nil) then exit;
+  //We have ONLY One Item, Select it by default
+  rSelectedIndex:= 0;
 
-  lres:= pRootItem.EnumChildItems(nil, pIEnumItem);
-  if (lres = S_OK) then
-  begin
-    lres:= pIEnumItem.GetCount(iCount);
-    if (lres = S_OK) then
-    begin
-*)
-      iCount:= 0;
+  if PreserveSelected and (ALastSelected <> nil)
+  then begin
+         curItem:= TXICA_TwainItem(ALastSelected);
+         Add(ALastSelected.Name, ALastSelected);
+         Result:= True;
+       end
+  else try
+          OpenDS;
 
-      if not(PreserveSelected) or (ALastSelected = nil)
-      then  //Select the First item by default
-            if (rSelectedIndex < 0) or (rSelectedIndex > iCount-1)
-            then rSelectedIndex:= 0;
+          curItem:= TXICA_TwainItem.Create(Self, 0, curName);
 
+          //CAP_CAMERASIDE  Se OK                  Type Camera
+          //  else
+          //Type Scanner
+          //
+          //  CAP_FEEDERENABLED
+          //     errore (es. TWRC_FAILURE / TWCC_CAPUNSUPPORTED) Category Flatbed
+          //     Se la risposta è TRUE o FALSE                   Category Feeder
 
-      for i:=0 to iCount-1 do
-      begin
-//        lres:= pIEnumItem.Next(1, pItem, itemFetched);
+          Add(curName, curItem);
 
-        Result := (lres = S_OK);
-        if Result then
-        begin
+          Result:= True;
 
-
-            if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curName)
-            then begin
-                   curItem:= TXICA_TwainItem(ALastSelected);
-                   Add(curName, ALastSelected);
-                   SelectedIndex:= i;
-                 end
-            else begin
-                   curItem:= TXICA_TwainItem.Create(Self, i, curName);
-                   Add(curName, curItem);
-                 end;
-        end
-        else break;
-      end;
-
-//      Result :=True;
+        finally
+        end;
 end;
 
 function TXICA_TwainDevice.GetType_Str: String;
@@ -535,9 +545,78 @@ begin
 *)
 end;
 
+function TXICA_TwainDevice.ProcessMessage(const Msg: TMsg): Boolean;
+var
+  twEvent: TW_EVENT;
+begin
+  (*
+  {Make twEvent structure}
+  twEvent.TWMessage := MSG_NULL;
+  twEvent.pEvent := TW_MEMREF(@Msg);
+  {Call Twain procedure to handle message}
+  Result:= (DSM_Entry(@AppIdentity, @Identity, DG_CONTROL, DAT_EVENT, MSG_PROCESSEVENT, @twEvent) = TWRC_DSEVENT);
+
+  {If it is a message from the source, process}
+  if Result then
+    case twEvent.TWMessage of
+      {No message from the source}
+      MSG_NULL: exit;
+      {Requested to close the source}
+      MSG_CLOSEDSREQ:
+      begin
+        {Call notification event}
+        if (Assigned(Owner.OnAcquireCancel)) then
+          Owner.OnAcquireCancel(Owner, Index);
+        if Assigned(Owner.OnTransferComplete) then
+          Owner.OnTransferComplete(Owner, Index, True);
+        {Disable the source}
+        DisableSource;
+        Owner.RefreshVirtualWindow;
+      end;
+      {Ready to transfer the images}
+      MSG_XFERREADY:
+        {Call method to transfer}
+        TransferImages;
+
+      MSG_CLOSEDSOK:
+       result:=true;
+
+      MSG_DEVICEEVENT:
+       result:=true;
+
+    end {case twEvent.TWMessage}
+    *)
+end;
+
+procedure TXICA_TwainDevice.OpenDS;
+begin
+  //Only
+//  if (TXICA_TwainManager(rOwner).m_DSMState > 3) then TXICA_TwainManager(rOwner).closeSelectedDS;
+  if (TXICA_TwainManager(rOwner).m_DSMState < 3) then TXICA_TwainManager(rOwner).connectDSM;
+
+end;
+
+procedure TXICA_TwainDevice.CloseDS;
+begin
+
+end;
+
 constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
+
+  rOpened:= False;
+  FillChar(rIdentity, sizeof(rIdentity), 0);
+end;
+
+constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceIdentity: TW_IDENTITY);
+begin
+  inherited Create(AOwner, AIndex, MakeID(ADeviceIdentity));
+
+  rManufacturer:= ADeviceIdentity.Manufacturer;
+  rName:= ADeviceIdentity.ProductName;
+  rVersion:= ADeviceIdentity.Version.MajorNum;
+  rVersionSub:= ADeviceIdentity.Version.MinorNum;
 end;
 
 destructor TXICA_TwainDevice.Destroy;
@@ -724,54 +803,36 @@ end;
 {Virtual window procedure handler}
 function VirtualWinProc(Handle: THandle; uMsg: UINT; wParam: WPARAM; lParam: LPARAM): LResult; stdcall;
 
-  {Returns the TCustomDelphiTwain object}
-  function Obj: TXICA_TwainManager;
-  begin
-    {%H-}Result := Pointer(PtrUInt(GetWindowLong(Handle, GWL_USERDATA)));
-  end {function};
-
 var
-  Twain: TXICA_TwainManager;
-  i    : Integer;
-  Msg  : TMsg;
+  i: Integer;
+  Msg: TMsg;
+  curDevice: TXICA_TwainDevice;
+
 begin
-  {Tests for the message}
   case uMsg of
-    {Creation of the window}
-    WM_CREATE:
-      {Stores the TCustomDelphiTwain object handle}
-      with {%H-}pCreateStruct(lParam)^ do
-        SetWindowLong(Handle, GWL_USERDATA, {%H-}PtrUInt(lpCreateParams));
-    {case} else
+    WM_CREATE: //Creation of the window
+    else
     begin
-      {Try to obtain the current object pointer}
-      Twain := Obj;
-(*
-      if Assigned(Twain) then
-        {If there are sources loaded, we need to verify}
-        {this message}
-       if (Twain.SourcesLoaded > 0) then
-        begin
-          {Convert parameters to a TMsg}
-          Msg := MakeMsg(Handle, uMsg, wParam, lParam);
-          {Tell about this message}
-          FOR i := 0 TO Twain.SourceCount - 1 DO
-            if ((Twain.Source[i].Loaded) and (Twain.Source[i].Enabled)) then
-              if Twain.Source[i].ProcessMessage(Msg) then
-              begin
-                {Case this was a message from the source, there is}
-                {no need for the default procedure to process}
-                Result := 0;
-                Exit;
-              end;
+      if (Twain_Manager <> nil) and (Twain_Manager.m_DSMState > 2) then
+      begin
+        //Convert parameters to a TMsg
+        Msg := MakeMsg(Handle, uMsg, wParam, lParam);
 
-        end {if (Twain.SourcesLoaded > 0)}
-*)
+        //Tell about this message
+        for i:=0 to Twain_Manager.Count-1 do
+          if Twain_Manager.Get(i, TXICA_Device(curDevice)) then
+          begin
+            if (curDevice.Opened) and (curDevice.ProcessMessage(Msg)) then
+            begin
+              //Case this was a message from the source, there is no need for the default procedure to process
+              Result:= 0;
+              Exit;
+            end;
+          end;
+      end;
+    end;
+  end;
 
-    end {case Else}
-  end {case uMsg of};
-
-  {Calls method to handle}
   Result := DefWindowProc(Handle, uMsg, wParam, lParam);
 end;
 
@@ -817,16 +878,17 @@ var
 
   procedure CreateDevice;
   begin
-    if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curIdentity.ProductName)
+    if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.ID = MakeID(curIdentity))
     then begin
            curDevice:= TXICA_TwainDevice(ALastSelected);
            Add(curIdentity.ProductName, ALastSelected);
            SelectedIndex:= i;
-           //curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
+           curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
          end
     else begin
-           curDevice:= TXICA_TwainDevice.Create(Self, i, curIdentity.ProductName);
+           curDevice:= TXICA_TwainDevice.Create(Self, i, curIdentity);
            Add(curIdentity.ProductName, curDevice);
+           curDevice.rType:= devTypeScanner;                  //to-do Verify other types?
          end;
   end;
 
@@ -839,49 +901,24 @@ begin
   connectDSM;
   if (m_DSMState > 2) then
   begin
-    devCount:= 0;
+    i:= 0;
     FillChar(curIdentity, Sizeof(curIdentity), 0);
     lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_GETFIRST, @curIdentity);
-    if (lRes = TWRC_SUCCESS) then
+    while not(lRes = TWRC_ENDOFLIST) do
     begin
-      devCount:= 1;
-      CreateDevice;
+      Case lRes of
+      TWRC_SUCCESS: begin
+                      inc(i);
+                      CreateDevice;
+                    end;
+      TWRC_FAILURE: begin
+                    end;
+      end;
 
-      //See TCustomDelphiTwain.EnumerateDevices repeat until
-      (*
-      if (devCount > 0) then
-      begin
-        for i:=0 to devCount-1 do
-        begin
-
-
-          if (VT_BSTR = pPropVar[1].vt)
-          then curDevice.rManufacturer :=pPropVar[1].bstrVal
-          else Exception.Create('Manufacturer of Device '+IntToStr(i)+' not String');
-
-          if (VT_BSTR = pPropVar[2].vt)
-          then curDevice.rName :=pPropVar[2].bstrVal
-          else Exception.Create('Name of Device '+IntToStr(i)+' not String');
-
-          if (VT_I4 = pPropVar[3].vt)
-          then curDevice.rType :=TXICA_DeviceType(pPropVar[3].iVal)
-          else Exception.Create('DeviceType of Device '+IntToStr(i)+' not Integer');
-
-          if (VT_BSTR = pPropVar[4].vt)
-          then VersionStrToInt(pPropVar[4].bstrVal, curDevice)
-          else Exception.Create('WiaVersion of Device '+IntToStr(i)+' not String');
-
-          pWiaPropertyStorage:= nil;
-
-
-        end;
-        *)
-
-
-        Result :=True;
-
-      //end;
+      lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_GETNEXT, @curIdentity);
     end;
+
+    Result :=True;
   end;
 end;
 
