@@ -1371,10 +1371,10 @@ constructor TXICA_Device.Create(const AOwner: TXICA_DeviceManager; const AIndex:
 begin
   inherited Create;
 
-  rOwner :=AOwner;
-  HasEnumerated :=False;
-  rIndex :=AIndex;
-  rID :=ADeviceID;
+  rOwner:= AOwner;
+  HasEnumerated:= False;
+  rIndex:= AIndex;
+  rID:= ADeviceID;
 end;
 
 destructor TXICA_Device.Destroy;

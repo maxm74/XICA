@@ -1,4 +1,4 @@
-(*******************************************************************************
+﻿(*******************************************************************************
 *                XICA (Cross-platform Image Capture Architecture)              *
 *                                                                              *
 *  FILE: XICA_Twain.pas                                                        *
@@ -139,7 +139,8 @@ type
 
   TXICA_TwainDevice = class(TXICA_Device)
   protected
-    rOpened: Boolean;
+    rOpened,
+    rEnabled: Boolean;
     rIdentity: TW_IDENTITY;
 
     //Enumerate the avaliable items
@@ -152,6 +153,12 @@ type
     procedure OpenDS; virtual;
     procedure CloseDS; virtual;
 
+    procedure EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle=0); overload; virtual;
+    procedure EnableDS(const UserInterface: TW_USERINTERFACE); overload; virtual;
+    procedure DisableDS; virtual;
+
+    procedure TransferImages; virtual;
+
   public
     constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); overload; override;
     constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceIdentity: TW_IDENTITY); overload; virtual;
@@ -163,8 +170,10 @@ type
                               APath, AFileName: String;
                               out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; override;
 
-    property Opened: Boolean read rOpened;
     property Identity: TW_IDENTITY read rIdentity;
+
+    property Opened: Boolean read rOpened;
+    property Enabled: Boolean read rEnabled;
   end;
 
   { TXICA_TwainManager }
@@ -172,7 +181,9 @@ type
   TXICA_TwainManager = class(TXICA_DeviceManager)
   protected
     TwainDirectory: String;
-    m_DSMState: Integer;
+    m_DSMState,
+    rOpenedSources,
+    rEnabledSources: Integer;
     rLibHandle: HInst;
     gDSM_Entry: TW_ENTRYPOINT;
     lRes: HResult;
@@ -206,6 +217,9 @@ type
     function Enabled: Boolean; override;
 
     class function Name: String; override;
+
+    property OpenedSources: Integer read rOpenedSources;
+    property EnabledSources: Integer read rEnabledSources;
   end;
 
 var
@@ -217,7 +231,7 @@ implementation
 
 {$ifdef MSWINDOWS}
 
-uses XICA;
+uses Messages, XICA;
 
 const
   {Name of the Twain library for 32 bits enviroment}
@@ -298,7 +312,7 @@ end;
 
 function MakeID(AIdentity: TW_IDENTITY): String;
 begin
-  Result:= AIdentity.Manufacturer+'-'+AIdentity.ProductName;
+  Result:= AIdentity.Manufacturer+'\'+AIdentity.ProductName;
 end;
 
 { TXICA_TwainItem }
@@ -500,6 +514,7 @@ function TXICA_TwainDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelec
 var
    curName: String;
    curItem: TXICA_TwainItem;
+   prevState: Boolean;
 
 begin
   Result:= False;
@@ -514,6 +529,7 @@ begin
          Result:= True;
        end
   else try
+          prevState:= Opened;
           OpenDS;
 
           curItem:= TXICA_TwainItem.Create(Self, 0, curName);
@@ -531,6 +547,7 @@ begin
           Result:= True;
 
         finally
+          if not(prevState) then CloseDS;
         end;
 end;
 
@@ -549,78 +566,165 @@ function TXICA_TwainDevice.ProcessMessage(const Msg: TMsg): Boolean;
 var
   twEvent: TW_EVENT;
 begin
-  (*
-  {Make twEvent structure}
-  twEvent.TWMessage := MSG_NULL;
-  twEvent.pEvent := TW_MEMREF(@Msg);
-  {Call Twain procedure to handle message}
-  Result:= (DSM_Entry(@AppIdentity, @Identity, DG_CONTROL, DAT_EVENT, MSG_PROCESSEVENT, @twEvent) = TWRC_DSEVENT);
+  //Make twEvent structure
+  twEvent.TWMessage:= MSG_NULL;
+  twEvent.pEvent:= TW_MEMREF(@Msg);
 
-  {If it is a message from the source, process}
+  //Call DSM_Entry procedure to handle message
+  Result:= (DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_EVENT, MSG_PROCESSEVENT, @twEvent) = TWRC_DSEVENT);
+
+  //{If it is a message from the source, process
   if Result then
     case twEvent.TWMessage of
-      {No message from the source}
+      //No message from the source
       MSG_NULL: exit;
-      {Requested to close the source}
+      //Requested to close the source
       MSG_CLOSEDSREQ:
       begin
-        {Call notification event}
+        //Call notification event
+        (*
         if (Assigned(Owner.OnAcquireCancel)) then
           Owner.OnAcquireCancel(Owner, Index);
         if Assigned(Owner.OnTransferComplete) then
           Owner.OnTransferComplete(Owner, Index, True);
-        {Disable the source}
-        DisableSource;
-        Owner.RefreshVirtualWindow;
+        *)
+        //Disable the source
+        DisableDS;
       end;
-      {Ready to transfer the images}
-      MSG_XFERREADY:
-        {Call method to transfer}
-        TransferImages;
+      //Ready to transfer the images
+      MSG_XFERREADY: TransferImages;  //Start Transfer Images
 
-      MSG_CLOSEDSOK:
-       result:=true;
+      MSG_CLOSEDSOK: Result:= True;
 
-      MSG_DEVICEEVENT:
-       result:=true;
-
-    end {case twEvent.TWMessage}
-    *)
+      MSG_DEVICEEVENT: Result:=true;
+    end;
 end;
 
 procedure TXICA_TwainDevice.OpenDS;
 begin
-  //Only
-//  if (TXICA_TwainManager(rOwner).m_DSMState > 3) then TXICA_TwainManager(rOwner).closeSelectedDS;
   if (TXICA_TwainManager(rOwner).m_DSMState < 3) then TXICA_TwainManager(rOwner).connectDSM;
 
+  //Open only if it is not already opened
+  if not(rOpened) then
+  begin
+    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_OPENDS, @rIdentity);
+
+    if (lRes = TWRC_SUCCESS) then
+    begin
+      //Increase the loaded sources count variable
+      inc(TXICA_TwainManager(rOwner).rOpenedSources);
+      rOpened:= True;
+    end;
+  end;
 end;
 
 procedure TXICA_TwainDevice.CloseDS;
 begin
+  //Close only if it is opened
+  if rOpened then
+  begin
+    //If is Enabled then Disable it first
+    if rEnabled then DisableDS;
 
+    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_CLOSEDS, @rIdentity);
+
+    if (lRes = TWRC_SUCCESS) then
+    begin
+      //Increase the loaded sources count variable
+      dec(TXICA_TwainManager(rOwner).rOpenedSources);
+      rOpened:= False;
+    end;
+  end;
+end;
+
+procedure TXICA_TwainDevice.EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle);
+var
+  twUserInterface: TW_USERINTERFACE;
+
+begin
+  {Builds UserInterface structure}
+  twUserInterface.ShowUI:= ShowUI;
+  twUserInterface.ModalUI:= Modal;
+
+  if (ParentWindow=0)
+  then twUserInterface.hParent:= TXICA_TwainManager(rOwner).VirtualWindow    //Owner.CustomGetParentWindow
+  else twUserInterface.hParent:= ParentWindow;
+
+  EnableDS(twUserInterface);
+end;
+
+procedure TXICA_TwainDevice.EnableDS(const UserInterface: TW_USERINTERFACE);
+begin
+  //Enable only if it is not already Enabled
+  if not(rEnabled) then
+  begin
+    //If not opened Open it First
+    if not(rOpened) then OpenDS;
+
+    if rOpened then
+    begin
+      lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_USERINTERFACE, MSG_ENABLEDS, @rIdentity);
+
+      if (lRes in [TWRC_SUCCESS, TWRC_CHECKSTATUS]) then
+      begin
+        //Increase the loaded sources count variable
+        inc(TXICA_TwainManager(rOwner).rEnabledSources);
+        rEnabled:= True;
+      end;
+    end;
+  end;
+end;
+
+procedure TXICA_TwainDevice.DisableDS;
+var
+  twUserInterface: TW_USERINTERFACE;
+
+begin
+  //If not opened simply set interal var to False
+  if not(rOpened) then rEnabled:= False;
+
+  if rEnabled then
+  begin
+    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface);
+
+    if (lRes = TWRC_SUCCESS) then
+    begin
+      //Increase the loaded sources count variable
+      dec(TXICA_TwainManager(rOwner).rEnabledSources);
+      rEnabled:= False;
+    end;
+  end;
+end;
+
+procedure TXICA_TwainDevice.TransferImages;
+begin
+  //TO-DO Copy from DelphiTwain
 end;
 
 constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 
-  rOpened:= False;
   FillChar(rIdentity, sizeof(rIdentity), 0);
+  rOpened:= False;
+  rEnabled:= False;
 end;
 
 constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceIdentity: TW_IDENTITY);
 begin
   inherited Create(AOwner, AIndex, MakeID(ADeviceIdentity));
 
-  rManufacturer:= ADeviceIdentity.Manufacturer;
-  rName:= ADeviceIdentity.ProductName;
-  rVersion:= ADeviceIdentity.Version.MajorNum;
-  rVersionSub:= ADeviceIdentity.Version.MinorNum;
+  rIdentity:= ADeviceIdentity;
+  rManufacturer:= rIdentity.Manufacturer;
+  rName:= rIdentity.ProductName;
+  rVersion:= rIdentity.Version.MajorNum;
+  rVersionSub:= rIdentity.Version.MinorNum;
 end;
 
 destructor TXICA_TwainDevice.Destroy;
 begin
+  CloseDS;
+
   inherited Destroy;
 end;
 
@@ -630,6 +734,7 @@ function TXICA_TwainDevice.DownloadNativeUI(hwndParent: THandle; useSystemUI: Bo
 var
    dlgFlags: LONG;
    i: Integer;
+   UserInterface: TW_USERINTERFACE;
    rDownloaded: Boolean;
    rDownload_Count: Integer;
    rDownload_Path,
@@ -640,7 +745,7 @@ begin
   Result:= 0;
   DownloadedFiles:= nil;
 
-  if (TXICA_TwainManager(rOwner) = nil) (*or (TXICA_TwainManager(rOwner).pDevMgr = nil)*) then exit;
+  if (TXICA_TwainManager(rOwner) = nil) then exit;
 
   try
      if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
@@ -654,29 +759,21 @@ begin
      rDownload_Count:= 0;
      rDownloaded:= False;
 
-(*     if useSystemUI
-     then dlgFlags:= WIA_DEVICE_DIALOG_USE_COMMON_UI
-     else dlgFlags:= 0;
-*)
-//     filePaths:= nil;
-//     itemArray:= nil;
+     //Download with UserInterface setted
+     UserInterface.hParent:= hwndParent;
+     UserInterface.ModalUI:= True;
+     UserInterface.ShowUI:= True;
 
-(*
-     lres:= TXICA_TwainManager(rOwner).pDevMgr.GetImageDlg(dlgFlags, StringToOleStr(Self.ID), hwndParent,
-                                                         StringToOleStr(rDownload_Path), StringToOleStr(rDownload_FileName),
-                                                         rDownload_Count, filePaths, itemArray);
-*)
+     //TO-DO: Search in Specs...
+     //rDownload_Count:= Download(UserInterface, APath, 'twain_demo', '.bmp', tfBMP);
+
      if (lres = S_OK) then
      begin
        //Copy filePaths to DownloadedFiles and Free elements
        SetLength(DownloadedFiles, rDownload_Count);
        for i:=0 to rDownload_Count-1 do
        begin
-//         DownloadedFiles[i]:= filePaths^[i];  { #todo 2 -oMaxM : Test if OleStrToString is necessary }
-
          if UseRelativePath then FullPathToRelativePath(rDownload_Path, DownloadedFiles[i]);
-
-//         SysFreeString(filePaths^[i]);
        end;
 
        Result:= rDownload_Count;
@@ -800,7 +897,7 @@ begin
   end;
 end;
 
-{Virtual window procedure handler}
+//Virtual window procedure handler - Forward messages to opened devices
 function VirtualWinProc(Handle: THandle; uMsg: UINT; wParam: WPARAM; lParam: LPARAM): LResult; stdcall;
 
 var
@@ -810,7 +907,7 @@ var
 
 begin
   case uMsg of
-    WM_CREATE: //Creation of the window
+    WM_CREATE: begin end;//Creation of the window
     else
     begin
       if (Twain_Manager <> nil) and (Twain_Manager.m_DSMState > 2) then
@@ -819,9 +916,11 @@ begin
         Msg := MakeMsg(Handle, uMsg, wParam, lParam);
 
         //Tell about this message
+        if (Twain_Manager.OpenedSources > 0) then
         for i:=0 to Twain_Manager.Count-1 do
           if Twain_Manager.Get(i, TXICA_Device(curDevice)) then
           begin
+            //Process this message only if Device is Opened
             if (curDevice.Opened) and (curDevice.ProcessMessage(Msg)) then
             begin
               //Case this was a message from the source, there is no need for the default procedure to process
@@ -833,7 +932,7 @@ begin
     end;
   end;
 
-  Result := DefWindowProc(Handle, uMsg, wParam, lParam);
+  Result:= DefWindowProc(Handle, uMsg, wParam, lParam);
 end;
 
 procedure TXICA_TwainManager.CreateVirtualWindow;
@@ -881,13 +980,13 @@ var
     if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.ID = MakeID(curIdentity))
     then begin
            curDevice:= TXICA_TwainDevice(ALastSelected);
-           Add(curIdentity.ProductName, ALastSelected);
+           Add(curDevice.ID, ALastSelected);
            SelectedIndex:= i;
            curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
          end
     else begin
            curDevice:= TXICA_TwainDevice.Create(Self, i, curIdentity);
-           Add(curIdentity.ProductName, curDevice);
+           Add(curDevice.ID, curDevice);
            curDevice.rType:= devTypeScanner;                  //to-do Verify other types?
          end;
   end;
@@ -929,6 +1028,8 @@ begin
   m_DSMState:= 1;
   FillChar(gDSM_Entry, SizeOf(gDSM_Entry), 0);
   VirtualWindow:= 0;
+  rOpenedSources:= 0;
+  rEnabledSources:= 0;
 
   LoadDSMLibrary;
 end;
@@ -954,7 +1055,7 @@ initialization
   FillChar(AppIdentity, SizeOf(AppIdentity), 0);
   AppIdentity.Version.MajorNum:= 0;
   AppIdentity.Version.MinorNum:= 1;
-  AppIdentity.Version.Language:= TWLG_USERLOCALE;
+  AppIdentity.Version.Language:= TW_UINT16(TWLG_USERLOCALE);
   AppIdentity.Version.Country:= TWCY_ITALY;
   AppIdentity.Version.Info:= '0.0.1';
   AppIdentity.ProtocolMajor:= TWON_PROTOCOLMAJOR;

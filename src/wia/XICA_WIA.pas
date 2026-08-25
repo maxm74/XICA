@@ -1991,13 +1991,13 @@ begin
                  if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.ID = pPropVar[0].bstrVal)
                  then begin
                         curDevice:= TXICA_WIADevice(ALastSelected);
-                        Add(pPropVar[0].bstrVal, ALastSelected);
+                        Add(curDevice.ID, ALastSelected);
                         SelectedIndex:= i;
-                        //curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
+                        curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
                       end
                  else begin
                         curDevice:= TXICA_WIADevice.Create(Self, i, pPropVar[0].bstrVal);
-                        Add(pPropVar[0].bstrVal, curDevice);
+                        Add(curDevice.ID, curDevice);
                       end;
                end
           else Exception.Create('ID of Device '+IntToStr(i)+' not String');

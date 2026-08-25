@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/08/25 Twain Manager: Added Enable/DisableDS; First Messages Porting;
+           WIA Manager: Add Items with curDevice.ID;
+
 2026/08/24 Twain Manager: First Structure;
 
 2026/08/21 Twain Manager: Load Library and first Enum Tests;
