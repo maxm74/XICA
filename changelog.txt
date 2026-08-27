@@ -1,5 +1,7 @@
 XICA CHANGE LOG
 ======================
+2026/08/27 Twain Manager: Moved DSM_Mem function outside Classes; First Write of Capability Get;
+
 2026/08/25 Twain Manager: Added Enable/DisableDS; First Messages Porting;
            WIA Manager: Add Items with curDevice.ID;
 

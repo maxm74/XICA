@@ -33,9 +33,11 @@ type
   TArrayDouble = array of Double;
   TArrayInteger = array of Integer;
   TArraySmallint = array of Smallint;
+  TArrayShortint = array of Shortint;
   TArrayByte = array of Byte;
   TArrayWord = array of Word;
   TArrayLongWord = array of LongWord;
+  TArrayBoolean = array of Boolean;
   TStringArray = array of String;
   TArrayGUID = array of TGUID;
 
@@ -102,6 +104,7 @@ type
 
 const
   //if Property contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
+  prop_RANGE_NUM_ELEMS = 4;
   prop_RANGE_MIN     = 0;
   prop_RANGE_DEFAULT = 1;
   prop_RANGE_MAX     = 2;

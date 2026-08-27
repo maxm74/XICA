@@ -59,22 +59,6 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
 
-  public
-    //IWiaTransferCallback implementation
-    function TransferCallback(lFlags: LONG;
-                              pWiaTransferParams: PWiaTransferParams): HRESULT; stdcall;
-    function GetNextStream(lFlags: LONG;
-                           bstrItemName,
-                           bstrFullItemName: BSTR;
-                           out ppDestination: IStream): HRESULT; stdcall;
-
-    destructor Destroy; override;
-
-    //Download the Item and return the number of files transfered.
-    // if multiple pages is downloaded then the file names are
-    // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
-    function Download(APath, AFileName, AExt: String): Integer; overload; override;
-
     //Get Current Property Value and it's type given the ID
     function GetProperty(const APropId: PROPID; out propType: TVarType; out APropValue): Boolean; overload;
 
@@ -94,23 +78,21 @@ type
     //Set the Property Value given the ID, the user must know the correct type to use
     function SetProperty(const APropId: PROPID; const propType: TVarType; const APropValue): Boolean;
 
-{ #note -oMaxM : Build overloaded functions for Set/Get Property? }
-(*
-    function SetProperty(APropId: PROPID; APropValue: Smallint): Boolean; overload;  //VT_I2
-    function SetProperty(APropId: PROPID; APropValue: Integer): Boolean; overload;   //VT_I4, VT_INT
-    function SetProperty(APropId: PROPID; APropValue: Single): Boolean; overload;    //VT_R4
-    function SetProperty(APropId: PROPID; APropValue: Double): Boolean; overload;    //VT_R8
-    function SetProperty(APropId: PROPID; APropValue: Currency): Boolean; overload;  //VT_R8
-    function SetProperty(APropId: PROPID; APropValue: TDateTime): Boolean; overload; //VT_DATE
-    function SetProperty(APropId: PROPID; APropValue: BSTR): Boolean; overload;      //VT_BSTR
-    function SetProperty(APropId: PROPID; APropValue: Boolean): Boolean; overload;   //VT_BOOL
-    function SetProperty(APropId: PROPID; APropValue: Word): Boolean; overload;      //VT_UI2
-    function SetProperty(APropId: PROPID; APropValue: DWord): Boolean; overload;     //VT_UI4, VT_UINT
-    function SetProperty(APropId: PROPID; APropValue: Int64): Boolean; overload;     //VT_I8
-    function SetProperty(APropId: PROPID; APropValue: UInt64): Boolean; overload;    //VT_UI8
-    function SetProperty(APropId: PROPID; APropValue: LPSTR): Boolean; overload;     //VT_LPSTR
-//    procedure SetProperty(APropId: PROPID; APropValue: LPWSTR): Boolean; overload;  //VT_LPWSTR
-*)
+  public
+    //IWiaTransferCallback implementation
+    function TransferCallback(lFlags: LONG;
+                              pWiaTransferParams: PWiaTransferParams): HRESULT; stdcall;
+    function GetNextStream(lFlags: LONG;
+                           bstrItemName,
+                           bstrFullItemName: BSTR;
+                           out ppDestination: IStream): HRESULT; stdcall;
+
+    destructor Destroy; override;
+
+    //Download the Item and return the number of files transfered.
+    // if multiple pages is downloaded then the file names are
+    // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
+    function Download(APath, AFileName, AExt: String): Integer; overload; override;
 
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
