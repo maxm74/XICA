@@ -1,5 +1,11 @@
 XICA CHANGE LOG
 ======================
+2026/08/28 Twain Manager: Continued Write of Capability Get;
+                          Added GetCapabilitySupportedOp;
+                          Added Enumerate Items with Calculated Category;
+                          Calculate Device Type in _EnumerateDevices;
+           Added XICA_ItemCategoryDescr;
+
 2026/08/27 Twain Manager: Moved DSM_Mem function outside Classes; First Write of Capability Get;
 
 2026/08/25 Twain Manager: Added Enable/DisableDS; First Messages Porting;

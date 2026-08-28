@@ -92,6 +92,24 @@ type
   );
 
 const
+  XICA_ItemCategoryDescr : array[TXICA_ItemCategory] of String = (
+     '<NULL>',
+     'Finished File',
+     'Flatbed',
+     'Feeder',
+     'Film',
+     'Root',
+     'Folder',
+     'Feeder Front',
+     'Feeder Back',
+     'Auto',
+     'Imprinter',
+     'Endoser',
+     'Bar Code Reader',
+     'Patch Code Reader',
+     'Micr  Reader'
+  );
+
   XICA_DeviceTypeDescr : array [TXICA_DeviceType] of String = (
     'Unknown', 'Scanner', 'Digital Camera'
   );
