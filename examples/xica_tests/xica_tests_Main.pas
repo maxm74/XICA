@@ -113,7 +113,7 @@ begin
             begin
               if curDevice.Get(i, curItem, curName) then
               begin
-                Memo1.Lines.Add('                         ['+IntToStr(i)+'] => NAME='+curItem.Name);
+                Memo1.Lines.Add(#13#10'                         ['+IntToStr(i)+'] => NAME='+curItem.Name);
                 (*Memo1.Lines.Add('                         TYPE='+SetToString(TypeInfo(TXICA_ItemTypes), Integer(curItem.Type_))+
                                                          ' CATEGORY='+SetToString(TypeInfo(TXICA_ItemCategory), Integer(curItem.Category)));*)
 

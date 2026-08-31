@@ -1080,17 +1080,13 @@ function TXICA_TwainDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelec
 var
    curName: String;
    curItem: TXICA_TwainItem;
-   prevState: Boolean;
    capSupport: TCapabilityOperations;
 
 begin
   Result:= False;
 
   try
-     prevState:= Opened;
-     OpenDS;
-
-     if (Type_ = devTypeDigitalCamera)      //Tested with GetCapabilitySupportedOp(CAP_CAMERASIDE) in Manager EnumerateDevices
+     if (Type_ = devTypeDigitalCamera)
      then begin
             //Digital camera : Maybe Tested
 
@@ -1099,7 +1095,6 @@ begin
             then begin
                    curItem:= TXICA_TwainItem(ALastSelected);
                    Add(curName, ALastSelected);
-
                  end
             else begin
                    curItem:= TXICA_TwainItem.Create(Self, 0, curName);
@@ -1133,8 +1128,12 @@ begin
                    SelectedIndex:= 0;
                  end
             else begin
+                   SelectedIndex:= -1;
+
                    if (capSet in capSupport) then
                    begin
+                     Really Test if can SET
+
                      //I Can Disable the Feeder, so Device have also Flatbed
                      curName:= XICA_ItemCategoryDescr[xicFLATBED];
                      if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curName)
@@ -1157,7 +1156,7 @@ begin
                    then begin
                           curItem:= TXICA_TwainItem(ALastSelected);
                           Add(curName, ALastSelected);
-                          SelectedIndex:= Count;
+                          SelectedIndex:= Length(rList)-1;
                         end
                    else begin
                           curItem:= TXICA_TwainItem.Create(Self, 0, curName);
@@ -1166,14 +1165,13 @@ begin
                           Add(curName, curItem);
                         end;
 
-                   if (Count = 1) then SelectedIndex:= 0;
+                   if (SelectedIndex < 0) then SelectedIndex:= 0;
                  end;
           end;
 
      Result:= True;
 
   finally
-     if not(prevState) then CloseDS;
   end;
 end;
 
@@ -1190,43 +1188,52 @@ end;
 
 function TXICA_TwainDevice.GetCapabilitySupportedOp(const ACapabilityId: TW_UINT16): TCapabilityOperations;
 var
-  CapabilityInfo: TW_CAPABILITY;
-  OneV: pTW_ONEVALUE;
+   prevState: Boolean;
+   CapabilityInfo: TW_CAPABILITY;
+   OneV: pTW_ONEVALUE;
 
 begin
   Result:= [];
+  try
+     prevState:= Opened;
 
-  //Source must be loaded
-  if Opened then
-  begin
-    //Fill structure
-    CapabilityInfo.Cap:= ACapabilityId;
-    CapabilityInfo.ConType:= TWON_ONEVALUE;
-    CapabilityInfo.hContainer:= 0;
+     //Source must be loaded
+     OpenDS;
 
-    //Call DSM_Entry and store return
-    lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, MSG_QUERYSUPPORT, @CapabilityInfo);
+     if Opened then
+     begin
+       //Fill structure
+       CapabilityInfo.Cap:= ACapabilityId;
+       CapabilityInfo.ConType:= TWON_ONEVALUE;
+       CapabilityInfo.hContainer:= 0;
 
-    if (lRes = TWRC_SUCCESS) then
-    try
-       //Obtain structure pointer
-       OneV:= DSM_LockMemory(CapabilityInfo.hContainer);
-       if (OneV = nil) then exit;
+       //Call DSM_Entry and store return
+       lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, MSG_QUERYSUPPORT, @CapabilityInfo);
 
-       if (OneV^.Item and TWQC_GET)=TWQC_GET then Result:= [capGet];
-       if (OneV^.Item and TWQC_SET)=TWQC_SET then Result:= Result+[capSet];
-       if (OneV^.Item and TWQC_GETDEFAULT)=TWQC_GETDEFAULT then Result:= Result+[capGetDefault];
-       if (OneV^.Item and TWQC_GETCURRENT)=TWQC_GETCURRENT then Result:= Result+[capGetCurrent];
-       if (OneV^.Item and TWQC_RESET)=TWQC_RESET then Result:= Result+[capReset];
-       if (OneV^.Item and TWQC_SETCONSTRAINT)=TWQC_SETCONSTRAINT then Result:= Result+[capSetConstraint];
+       if (lRes = TWRC_SUCCESS) then
+       try
+          //Obtain structure pointer
+          OneV:= DSM_LockMemory(CapabilityInfo.hContainer);
+          if (OneV = nil) then exit;
 
-    finally
-       //Unlock memory
-       DSM_UnlockMemory(CapabilityInfo.hContainer);
+          if (OneV^.Item and TWQC_GET)=TWQC_GET then Result:= [capGet];
+          if (OneV^.Item and TWQC_SET)=TWQC_SET then Result:= Result+[capSet];
+          if (OneV^.Item and TWQC_GETDEFAULT)=TWQC_GETDEFAULT then Result:= Result+[capGetDefault];
+          if (OneV^.Item and TWQC_GETCURRENT)=TWQC_GETCURRENT then Result:= Result+[capGetCurrent];
+          if (OneV^.Item and TWQC_RESET)=TWQC_RESET then Result:= Result+[capReset];
+          if (OneV^.Item and TWQC_SETCONSTRAINT)=TWQC_SETCONSTRAINT then Result:= Result+[capSetConstraint];
 
-       //Unallocate memory
-       DSM_Free(CapabilityInfo.hContainer);
-    end;
+       finally
+          //Unlock memory
+          DSM_UnlockMemory(CapabilityInfo.hContainer);
+
+          //Unallocate memory
+          DSM_Free(CapabilityInfo.hContainer);
+       end;
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
   end;
 end;
 
@@ -1631,7 +1638,7 @@ var
            curDevice:= TXICA_TwainDevice.Create(Self, i, curIdentity);
            Add(curDevice.ID, curDevice);
 
-           capSupport:= curDevice.GetCapabilitySupportedOp(CAP_CAMERASIDE);
+           capSupport:= curDevice.GetCapabilitySupportedOp(ICAP_EXPOSURETIME); //CAP_CAMERAENABLED CAP_CAMERASIDE ?;
            if (capGet in capSupport)
            then curDevice.rType:= devTypeDigitalCamera
            else curDevice.rType:= devTypeScanner;

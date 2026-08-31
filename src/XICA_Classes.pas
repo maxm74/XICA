@@ -276,6 +276,7 @@ type
     rVersionSub: Integer;
     lres: HResult;
 
+    Enumerating,
     HasEnumerated: Boolean;
 
     rOnAfterDeviceTransfer,
@@ -489,7 +490,10 @@ type
     rVersionSub: Integer;
     rEnumAll: Boolean;
     lres: HResult;
+
+    Enumerating,
     HasEnumerated: Boolean;
+
     rOnAfterDeviceTransfer,
     rOnBeforeDeviceTransfer: TXICA_OnDeviceManagerTransfer;
 
@@ -1341,6 +1345,7 @@ begin
 
   Clear(PreserveSelected);
 
+  Enumerating:= True;
   try
      //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
      if (lastSelected = nil)
@@ -1353,6 +1358,8 @@ begin
     Clear(PreserveSelected);
     Result:= False;
   end;
+
+  Enumerating:= False;
 end;
 
 class function TXICA_Device.SettingsDialogFunc: TXICA_SettingsDialogFunc;
@@ -1372,6 +1379,7 @@ begin
   inherited Create;
 
   rOwner:= AOwner;
+  Enumerating:= False;
   HasEnumerated:= False;
   rIndex:= AIndex;
   rID:= ADeviceID;
@@ -1389,9 +1397,13 @@ end;
 
 function TXICA_Device.GetCount: DWord;
 begin
-  //Enumerate Items if needed
-  if not(HasEnumerated)
-  then HasEnumerated:= EnumerateItems(False);
+  //Avoid Infinite loop if we use Count in _EnumerateItems
+  if not(Enumerating) then
+  begin
+    //Enumerate Items if needed
+    if not(HasEnumerated)
+    then HasEnumerated:= EnumerateItems(False);
+  end;
 
   Result:=inherited GetCount;
 end;
@@ -1748,6 +1760,8 @@ begin
 
   Clear(PreserveSelected);
 
+  Enumerating:= True;
+
   if Enabled then
   try
      //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
@@ -1759,6 +1773,8 @@ begin
     Clear(PreserveSelected);
     Result :=False;
   end;
+
+  Enumerating:= False;
 end;
 
 class function TXICA_DeviceManager.SelectDialogFunc: TXICA_SelectDialogFunc;
@@ -1770,6 +1786,7 @@ constructor TXICA_DeviceManager.Create(const AEnumAll: Boolean);
 begin
   inherited Create;
 
+  Enumerating:= False;
   HasEnumerated:= False;
   rEnumAll:= AEnumAll;
 end;
@@ -1786,9 +1803,13 @@ end;
 
 function TXICA_DeviceManager.GetCount: DWord;
 begin
-  //Enumerate devices if needed
-  if not(HasEnumerated)
-  then HasEnumerated:= EnumerateDevices(False);
+  //Avoid Infinite loop if we use Count in _EnumerateDevices
+  if not(Enumerating) then
+  begin
+    //Enumerate devices if needed
+    if not(HasEnumerated)
+    then HasEnumerated:= EnumerateDevices(False);
+  end;
 
   Result:=inherited GetCount;
 end;

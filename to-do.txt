@@ -5,4 +5,7 @@ Add a Platform Unit with Device Manager Register (WIA,Twain under Windows; SANE 
 
 BUGS:
 
-  Duplex does not work on HP ?
+  Twain Duplex on HP :
+    See Documentation for CAP_CAMERASIDE Page 436 of PDF Specs 2.2
+      if this Cap is Supported we can do Front/Back Only and Front/Back First
+

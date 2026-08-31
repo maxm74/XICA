@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/08/31 Classes: Avoid Infinite loop if we use Count in _EnumerateXX
+           Twain Manager: Test Camera Type with ICAP_EXPOSURETIME
+
 2026/08/28 Twain Manager: Continued Write of Capability Get;
                           Added GetCapabilitySupportedOp;
                           Added Enumerate Items with Calculated Category;
