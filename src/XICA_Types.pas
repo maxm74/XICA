@@ -116,7 +116,7 @@ const
 
 type
   TXICA_PropertyFlag = (
-    prop_READ,  prop_WRITE, prop_REQUIRED, prop_RANGE, prop_LIST
+    prop_READ, prop_WRITE, prop_REQUIRED, prop_RANGE, prop_LIST
   );
   TXICA_PropertyFlags = set of TXICA_PropertyFlag;
 

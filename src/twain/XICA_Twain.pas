@@ -48,34 +48,6 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
 
-    //Returns return status information
-    function GetReturnStatus: TW_UINT16;
-
-    //Converts from a result to a TCapabilityRet
-    function ResultToCapabilityRec(const Value: TW_UINT16): TCapabilityRet;
-
-    //Returns a capability structure
-    function GetCapabilityRec(const ACapabilityId: TW_UINT16; out Handle: HGLOBAL; Mode: TW_UINT16; out Container: TW_UINT16): TW_UINT16;
-
-    //Get Current Capability Value and it's type given the ID
-    function GetCapability(const ACapabilityId: TW_UINT16; const AMode: TW_UINT16; out CapabilityType: TW_UINT16; out ACapabilityValue): TW_UINT16; overload;
-
-    //Get Current, Default and Possible Values of a Capability given the ID,
-    //  Depending on the type returned in CapabilityType
-    //  ACapabilityListValues can be a Dynamic Array of Integers, Real, etc... user must free it
-    //  if Result contain the Flag prop_RANGE then use XICA_RANGE_XXX Indexes to get MIN/MAX/STEP Values
-    function GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
-                           out ACapabilityValue, ACapabilityDefaultValue;
-                           out ACapabilityListValues): TXICA_PropertyFlags; overload;
-
-    //Get a Range Capability with Current, Default, Min, Max, Step Values  { #note 5 -oMaxM : do I keep it? }
-    //   user MUST specify the type in propType in order to internally allocate the correct array, otherwise expect an exception
-    function GetCapability(const ACapabilityId: TW_UINT16; var CapabilityType: TW_UINT16;
-                           out ACapabilityValue, ACapabilityDefault, ACapabilityMin, ACapabilityMax, ACapabilityStep): TW_UINT16; overload;
-
-    //Set the Capability Value given the ID, the user must know the correct type to use
-    function SetCapability(const ACapabilityId: TW_UINT16; const CapabilityType: TW_UINT16; const ACapabilityValue): Boolean;
-
   public
     destructor Destroy; override;
 
@@ -181,9 +153,38 @@ type
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
-    function GetType_Str: String; override;
+    //Returns return status information
+    function GetReturnStatus: TW_UINT16;
+
+    //Converts from a result to a TCapabilityRet
+    function ResultToCapabilityRec(const Value: TW_UINT16): TCapabilityRet;
+
+    //Returns a capability structure
+    function GetCapabilityRec(const ACapabilityId: TW_UINT16; out Handle: HGLOBAL; Mode: TW_UINT16; out Container: TW_UINT16): TW_UINT16;
+
+    //Returns a capability structure
+    function SetCapabilityRec(const ACapabilityId: TW_UINT16; const CapabilityType: TW_UINT16; const DataHandle: HGLOBAL): TW_UINT16;
+
+    //Get Current Capability Value and it's type given the ID
+    function GetCapability(const ACapabilityId: TW_UINT16; const AMode: TW_UINT16; out CapabilityType: TW_UINT16; out ACapabilityValue): TW_UINT16; overload;
+
+    //Get Current and Default Values of a Capability given the ID,
+    function GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
+                           out ACapabilityValue, ACapabilityDefaultValue): TXICA_PropertyFlags; overload;
+
+    //Get Current, Default and Possible Values of a Capability given the ID,
+    //  Depending on the type returned in CapabilityType
+    //  ACapabilityListValues can be a Dynamic Array of Integers, Real, etc... user must free it
+    //  if Result contain the Flag prop_RANGE then use XICA_RANGE_XXX Indexes to get MIN/MAX/STEP Values
+    function GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
+                           out ACapabilityValue, ACapabilityDefaultValue;
+                           out ACapabilityListValues): TXICA_PropertyFlags; overload;
+
+    //Set the Capability Value given the ID, the user must know the correct type to use
+    function SetCapability(const ACapabilityId: TW_UINT16; const CapabilityType: TW_UINT16; const ACapabilityValue): Boolean;
 
     //Returns supported capability Operations
+    function CapabilitySupportedOp(const ACapabilityId: TW_UINT16): TCapabilityOperations; //This Version don't open the DS and is used internally
     function GetCapabilitySupportedOp(const ACapabilityId: TW_UINT16): TCapabilityOperations;
 
     function ProcessMessage(const Msg: TMsg): Boolean; virtual;
@@ -352,7 +353,7 @@ function DSM_Alloc(_size: TW_UINT32): TW_HANDLE;
 begin
   if Assigned(gDSM_Entry.DSM_MemAllocate)
   then Result:= gDSM_Entry.DSM_MemAllocate(_size)
-  else Result:= GlobalAlloc(GPTR, _size);
+  else Result:= GlobalAlloc(GHND, _size);
 end;
 
 procedure DSM_Free(_hMemory: TW_HANDLE);
@@ -510,19 +511,136 @@ begin
 end;
 
 function TXICA_TwainItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+var
+   prevState: Boolean;
+   sCurrent, sDefault: Single;
+   sValues: TArraySingle;
+   capType: TW_UINT16;
+   i: Integer;
+
 begin
+  Result:= [];
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       Result:= GetCapability(ICAP_XRESOLUTION, capType, sCurrent, sDefault, sValues);
+
+       if (prop_READ in Result) then
+       begin
+         Current:= Trunc(sCurrent);
+         Default:= Trunc(sDefault);
+
+         SetLength(Values, Length(sValues));
+         for i:=Low(sValues) to High(sValues) do Values[i]:= Trunc(sValues[i]);
+       end;
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+var
+   prevState: Boolean;
+   sCurrent, sDefault: Single;
+   sValues: TArraySingle;
+   capType: TW_UINT16;
+   i: Integer;
+
 begin
+  Result:= [];
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       Result:= GetCapability(ICAP_YRESOLUTION, capType, sCurrent, sDefault, sValues);
+
+       if (prop_READ in Result) then
+       begin
+         Current:= Trunc(sCurrent);
+         Default:= Trunc(sDefault);
+
+         SetLength(Values, Length(sValues));
+         for i:=Low(sValues) to High(sValues) do Values[i]:= Trunc(sValues[i]);
+       end;
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetResolution(out AXRes, AYRes: Integer): Boolean;
+var
+   prevState: Boolean;
+   sXRes, sYRes: Single;
+   capType: TW_UINT16;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       Result:= (GetCapability(ICAP_XRESOLUTION, MSG_GETCURRENT, capType, sXRes) = TWRC_SUCCESS) and
+                (GetCapability(ICAP_YRESOLUTION, MSG_GETCURRENT, capType, sYRes) = TWRC_SUCCESS);
+
+       if Result then
+       begin
+         AXRes:= Trunc(sXRes);
+         AYRes:= Trunc(sYRes);
+       end;
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
+var
+   prevState: Boolean;
+   sXRes, sYRes: Single;
+   capType: TW_UINT16;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       sXRes:= AXRes;
+       sYRes:= AYRes;
+
+       Result:= SetCapability(ICAP_XRESOLUTION, TWTY_FIX32, sXRes) and
+                SetCapability(ICAP_YRESOLUTION, TWTY_FIX32, sYRes);
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetPaperRect(out Current: TRect): Boolean;
@@ -539,418 +657,6 @@ end;
 
 function TXICA_TwainItem._GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
 begin
-end;
-
-function TXICA_TwainItem.GetReturnStatus: TW_UINT16;
-var
-  StatusInfo: TW_STATUS;
-
-begin
-  //The source must be loaded in order to get the status
-  if TXICA_TwainDevice(Owner).Opened then
-  begin
-    DSM_Entry(@AppIdentity, @TXICA_TwainDevice(Owner).rIdentity, DG_CONTROL, DAT_STATUS, MSG_GET, @StatusInfo);
-    Result := StatusInfo.ConditionCode;
-  end
-  else Result:= 0;
-end;
-
-function TXICA_TwainItem.ResultToCapabilityRec(const Value: TW_UINT16): TCapabilityRet;
-begin
-  case Value of
-  TWRC_SUCCESS: Result:= crSuccess;
-  else case GetReturnStatus of  //Error, get more on the error, and return result}
-         TWCC_CAPUNSUPPORTED: Result := crUnsupported;
-         TWCC_CAPBADOPERATION: Result := crBadOperation;
-         TWCC_CAPSEQERROR: Result := crDependencyError;
-         TWCC_LOWMEMORY: Result := crLowMemory;
-         TWCC_SEQERROR: Result := crInvalidState;
-         else Result := crBadOperation;
-       end;
-  end;
-end;
-
-function TXICA_TwainItem.GetCapabilityRec(const ACapabilityId: TW_UINT16;
-                                          out Handle: HGLOBAL; Mode: TW_UINT16; out Container: TW_UINT16): TW_UINT16;
-var
-  CapabilityInfo: TW_CAPABILITY;
-
-begin
-  //Source must be loaded
-  if TXICA_TwainDevice(Owner).Opened then
-  begin
-    //Fill structure
-    CapabilityInfo.Cap:= ACapabilityId;
-    CapabilityInfo.ConType:= TWON_DONTCARE16;
-    CapabilityInfo.hContainer:= 0;
-
-    //Call DSM_Entry and store return
-    Result:= DSM_Entry(@AppIdentity, @TXICA_TwainDevice(Owner).rIdentity, DG_CONTROL, DAT_CAPABILITY, Mode, @CapabilityInfo);
-
-    if (Result = TWRC_SUCCESS) then
-    begin
-      Handle:= CapabilityInfo.hContainer;
-      Container:= CapabilityInfo.ConType;
-    end
-  end
-  else Result:= TWRC_DATANOTAVAILABLE;
-end;
-
-function TXICA_TwainItem.GetCapability(const ACapabilityId: TW_UINT16;  const AMode: TW_UINT16;
-                                       out CapabilityType: TW_UINT16; out ACapabilityValue): TW_UINT16;
-var
-  OneV: pTW_ONEVALUE;
-  Container: TW_UINT16;
-  MemHandle: HGLOBAL;
-
-begin
-  MemHandle:= 0;
-
-  Result:= GetCapabilityRec(ACapabilityId, MemHandle, AMode, {%H-}Container);
-  if (Result = TWRC_SUCCESS) then
-  begin
-    if (Container = TWON_ONEVALUE) then
-    try
-       //Obtain structure pointer
-       OneV:= DSM_LockMemory(MemHandle);
-       if (OneV = nil) then exit(TWRC_DATANOTAVAILABLE);
-
-       CapabilityType:= OneV^.ItemType;
-
-       case CapabilityType of
-       TWTY_INT8   : Shortint(ACapabilityValue):= pTW_INT8(@OneV^.Item)^;
-       TWTY_UINT8  : Byte(ACapabilityValue):= pTW_UINT8(@OneV^.Item)^;
-       TWTY_INT16,
-       44 {TWTY_HANDLE} : Smallint(ACapabilityValue):= pTW_INT16(@OneV^.Item)^;
-       TWTY_UINT16 : Word(ACapabilityValue):= pTW_UINT16(@OneV^.Item)^;
-       TWTY_INT32  : Integer(ACapabilityValue):= pTW_INT32(@OneV^.Item)^;
-       TWTY_UINT32,
-       43 {TWTY_MEMREF} : LongWord(ACapabilityValue):= pTW_UINT32(@OneV^.Item)^;
-       TWTY_BOOL   : Boolean(ACapabilityValue):= pTW_BOOL(@OneV^.Item)^;
-       TWTY_FIX32  : Single(ACapabilityValue):= Fix32ToFloat(pTW_FIX32(@OneV^.Item)^);
-       //TWTY_FRAME
-       TWTY_STR32,
-       TWTY_STR64,
-       TWTY_STR128,
-       TWTY_STR255 : String(ACapabilityValue):= String(PAnsiChar(@OneV^.Item));
-       else Result:= TWRC_DATANOTAVAILABLE;
-       end;
-
-    finally
-       //Unlock memory
-       DSM_UnlockMemory(MemHandle);
-    end;
-
-    //Unallocate memory
-    DSM_Free(MemHandle);
-  end;
-end;
-
-function TXICA_TwainItem.GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
-                                       out ACapabilityValue, ACapabilityDefaultValue; out ACapabilityListValues): TXICA_PropertyFlags;
-var
-   ArrayV   : pTW_ARRAY;
-   RangeV   : pTW_RANGE;
-   NumItems,
-   ItemSize : Integer;
-   Data     : Pointer;
-   CurItem  : Integer;
-   Container: TW_UINT16;
-   MemHandle: HGLOBAL;
-
-begin
-  MemHandle:= 0;
-
-  Result:= [];
-  if (GetCapabilityRec(ACapabilityId, MemHandle, MSG_GET, {%H-}Container) = TWRC_SUCCESS) then
-  try
-     Case Container of
-       TWON_ARRAY,
-       TWON_ENUMERATION: try
-          ArrayV:= GlobalLock(MemHandle);
-          if (ArrayV = nil) then exit;
-
-          Result:= Result+[prop_READ, prop_LIST];
-
-          //Prepare to list items
-          //  The two records have the first two fields (ItemType, NumItems) in the same position, so we have no problems.
-          CapabilityType:= ArrayV^.ItemType;
-          NumItems:= ArrayV^.NumItems;
-          //  To get Data Pointer to First List Item we use a Cast to skip TW_ENUMERATION CurrentIndex, DefaultIndex
-          if (Container = TWON_ARRAY)
-          then Data:= @ArrayV^.ItemList[0]
-          else Data:= @pTW_ENUMERATION(ArrayV)^.ItemList[0];
-
-          ItemSize:= TW_TypeSize(CapabilityType);
-
-          case CapabilityType of
-            TWTY_INT8   : begin
-              SetLength(TArrayShortint(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to ArrayV^.NumItems-1 do
-              begin
-                TArrayShortint(ACapabilityListValues)[CurItem]:= pTW_INT8(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Shortint(ACapabilityValue):= TArrayShortint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Shortint(ACapabilityDefaultValue):= TArrayShortint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_UINT8  : begin
-              SetLength(TArrayByte(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArrayByte(ACapabilityListValues)[CurItem]:= pTW_UINT8(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Byte(ACapabilityValue):= TArrayByte(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Byte(ACapabilityDefaultValue):= TArrayByte(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_INT16,
-            44 {TWTY_HANDLE} : begin
-              SetLength(TArraySmallint(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArraySmallint(ACapabilityListValues)[CurItem]:= pTW_INT16(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Smallint(ACapabilityValue):= TArraySmallint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Smallint(ACapabilityDefaultValue):= TArraySmallint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_UINT16 : begin
-              SetLength(TArrayWord(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArrayWord(ACapabilityListValues)[CurItem]:= pTW_UINT16(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Word(ACapabilityValue):= TArrayWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Word(ACapabilityDefaultValue):= TArrayWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_INT32  : begin
-              SetLength(TArrayInteger(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArrayInteger(ACapabilityListValues)[CurItem]:= pTW_INT32(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Integer(ACapabilityValue):= TArrayInteger(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Integer(ACapabilityDefaultValue):= TArrayInteger(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_UINT32,
-            43 {TWTY_MEMREF} : begin
-              SetLength(TArrayLongWord(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArrayLongWord(ACapabilityListValues)[CurItem]:= pTW_UINT32(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                LongWord(ACapabilityValue):= TArrayLongWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                LongWord(ACapabilityDefaultValue):= TArrayLongWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_BOOL   : begin
-              SetLength(TArrayBoolean(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArrayBoolean(ACapabilityListValues)[CurItem]:= pTW_BOOL(Data)^;
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Boolean(ACapabilityValue):= TArrayBoolean(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Boolean(ACapabilityDefaultValue):= TArrayBoolean(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            TWTY_FIX32  : begin
-              SetLength(TArraySingle(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TArraySingle(ACapabilityListValues)[CurItem]:= Fix32ToFloat(pTW_FIX32(Data)^);
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                Single(ACapabilityValue):= TArraySingle(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                Single(ACapabilityDefaultValue):= TArraySingle(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-            //TWTY_FRAME
-            TWTY_STR32,
-            TWTY_STR64,
-            TWTY_STR128,
-            TWTY_STR255 : begin
-              SetLength(TStringArray(ACapabilityListValues), NumItems);
-              //Copy items
-              for CurItem:= 0 to NumItems-1 do
-              begin
-                TStringArray(ACapabilityListValues)[CurItem]:= String(PAnsiChar(Data));
-
-                //Move memory to the next Data
-                inc(Data, ItemSize);
-              end;
-
-              if (Container = TWON_ENUMERATION) then
-              begin
-                String(ACapabilityValue):= TStringArray(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
-                String(ACapabilityDefaultValue):= TStringArray(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
-              end;
-            end;
-          end;
-
-         if (Container = TWON_ARRAY) then
-         begin
-           //????????
-           GetCapability(ACapabilityId, MSG_GETCURRENT, CapabilityType, ACapabilityValue);
-           GetCapability(ACapabilityId, MSG_GETDEFAULT, CapabilityType, ACapabilityDefaultValue);
-         end;
-
-       finally
-          //Unlock memory
-          DSM_UnlockMemory(MemHandle);
-       end;
-       TWON_RANGE: try
-         RangeV:= GlobalLock(MemHandle);
-         if (RangeV = nil) then exit;
-
-         Result:= Result+[prop_READ, prop_RANGE];
-
-         case RangeV^.ItemType of
-         TWTY_INT8   : begin
-           SetLength(TArrayShortint(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT8(@RangeV^.MinValue)^;
-           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT8(@RangeV^.MaxValue)^;
-           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT8(@RangeV^.StepSize)^;
-           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT8(@RangeV^.DefaultValue)^;
-           Shortint(ACapabilityDefaultValue):= pTW_INT8(@RangeV^.DefaultValue)^;
-           Shortint(ACapabilityValue):= pTW_INT8(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_UINT8  : begin
-           SetLength(TArrayByte(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT8(@RangeV^.MinValue)^;
-           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT8(@RangeV^.MaxValue)^;
-           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT8(@RangeV^.StepSize)^;
-           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_UINT8(@RangeV^.DefaultValue)^;
-           Byte(ACapabilityDefaultValue):= pTW_UINT8(@RangeV^.DefaultValue)^;
-           Byte(ACapabilityValue):= pTW_UINT8(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_INT16, {TWTY_HANDLE}
-         44          : begin
-           SetLength(TArraySmallint(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT16(@RangeV^.MinValue)^;
-           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT16(@RangeV^.MaxValue)^;
-           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT16(@RangeV^.StepSize)^;
-           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT16(@RangeV^.DefaultValue)^;
-           Smallint(ACapabilityDefaultValue):= pTW_INT16(@RangeV^.DefaultValue)^;
-           Smallint(ACapabilityValue):= pTW_INT16(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_UINT16 : begin
-           SetLength(TArrayWord(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT16(@RangeV^.MinValue)^;
-           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT16(@RangeV^.MaxValue)^;
-           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT16(@RangeV^.StepSize)^;
-           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_DEFAULT]) := pTW_UINT16(@RangeV^.DefaultValue)^;
-           Word(ACapabilityDefaultValue):= pTW_UINT16(@RangeV^.DefaultValue)^;
-           Word(ACapabilityValue):= pTW_UINT16(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_INT32  : begin
-           SetLength(TArrayInteger(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT32(@RangeV^.MinValue)^;
-           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT32(@RangeV^.MaxValue)^;
-           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT32(@RangeV^.StepSize)^;
-           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT32(@RangeV^.DefaultValue)^;
-           Integer(ACapabilityDefaultValue):= pTW_INT32(@RangeV^.DefaultValue)^;
-           Integer(ACapabilityValue):= pTW_INT32(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_UINT32, {TWTY_MEMREF}
-         43           : begin
-           SetLength(TArrayLongWord(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT32(@RangeV^.MinValue)^;
-           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT32(@RangeV^.MaxValue)^;
-           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT32(@RangeV^.StepSize)^;
-           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_UINT32(@RangeV^.DefaultValue)^;
-           LongWord(ACapabilityDefaultValue):= pTW_UINT32(@RangeV^.DefaultValue)^;
-           LongWord(ACapabilityValue):= pTW_UINT32(@RangeV^.CurrentValue)^;
-         end;
-         TWTY_FIX32  : begin
-           SetLength(TArraySingle(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
-           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_MIN]):= Fix32ToFloat(pTW_FIX32(@RangeV^.MinValue)^);
-           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_MAX]):= Fix32ToFloat(pTW_FIX32(@RangeV^.MaxValue)^);
-           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_STEP]):= Fix32ToFloat(pTW_FIX32(@RangeV^.StepSize)^);
-           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_DEFAULT]):= Fix32ToFloat(pTW_FIX32(@RangeV^.DefaultValue)^);
-           Single(ACapabilityDefaultValue):= Fix32ToFloat(pTW_FIX32(@RangeV^.DefaultValue)^);
-           Single(ACapabilityValue):= Fix32ToFloat(pTW_FIX32(@RangeV^.CurrentValue)^);
-         end;
-         end;
-
-       finally
-          //Unlock memory
-          DSM_UnlockMemory(MemHandle);
-       end;
-     end;
-
-  finally
-       //Unallocate memory
-       DSM_Free(MemHandle);
-  end;
-end;
-
-function TXICA_TwainItem.GetCapability(const ACapabilityId: TW_UINT16; var CapabilityType: TW_UINT16;
-                                       out ACapabilityValue, ACapabilityDefault, ACapabilityMin, ACapabilityMax, ACapabilityStep): TW_UINT16;
-begin
-
-end;
-
-function TXICA_TwainItem.SetCapability(const ACapabilityId: TW_UINT16; const CapabilityType: TW_UINT16; const ACapabilityValue): Boolean;
-begin
-
 end;
 
 function TXICA_TwainItem.GetRotation(out Value: TXICA_Rotation): Boolean;
@@ -1081,6 +787,10 @@ var
    curName: String;
    curItem: TXICA_TwainItem;
    capSupport: TCapabilityOperations;
+   oldFeedEnabled,
+   newFeedEnabled: Boolean;
+   FeedCapabilityType,
+   capRet: TW_UINT16;
 
 begin
   Result:= False;
@@ -1106,8 +816,30 @@ begin
             SelectedIndex:= 0;
           end
      else begin
-            //Device is a Scanner, Test if it has a Feeder
-            capSupport:= GetCapabilitySupportedOp(CAP_FEEDERENABLED);
+            try
+               //Source must be loaded
+               OpenDS;
+
+               //Device is a Scanner, Test if it has a Feeder
+               capSupport:= [];//GetCapabilitySupportedOp(CAP_FEEDERENABLED);
+
+               //HP always returns capSet even with a Feeder only scanner ??
+               capRet:= GetCapability(CAP_FEEDERENABLED, MSG_GET, FeedCapabilityType, oldFeedEnabled);
+               if (capRet = TWRC_SUCCESS) then
+               begin
+                 capSupport:= capSupport+[capGet];
+                 newFeedEnabled:= not(oldFeedEnabled);
+                 if SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, newFeedEnabled) then
+                 begin
+                   capSupport:= capSupport+[capSet];
+                   SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, oldFeedEnabled);
+                 end;
+               end;
+
+            finally
+               CloseDS;
+            end;
+
             if (capSupport = [])
             then begin
                    //Don't have a Feeder, so is a Flatbed Only Device
@@ -1132,8 +864,6 @@ begin
 
                    if (capSet in capSupport) then
                    begin
-                     Really Test if can SET
-
                      //I Can Disable the Feeder, so Device have also Flatbed
                      curName:= XICA_ItemCategoryDescr[xicFLATBED];
                      if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.Name = curName)
@@ -1175,22 +905,577 @@ begin
   end;
 end;
 
-function TXICA_TwainDevice.GetType_Str: String;
+function TXICA_TwainDevice.GetReturnStatus: TW_UINT16;
+var
+  StatusInfo: TW_STATUS;
+
 begin
-  if (rType in [devTypeUnknown..devTypeDigitalCamera])
-  then Result:= inherited GetType_Str
-(*
-  else if (Integer(rType) = StiDeviceTypeStreamingVideo)
-       then Result:= 'Streaming Video'
-       else Result:= 'Undefined ('+IntToStr(Integer(rType))+')';
-*)
+  //The source must be loaded in order to get the status
+  if Opened then
+  begin
+    DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_STATUS, MSG_GET, @StatusInfo);
+    Result := StatusInfo.ConditionCode;
+  end
+  else Result:= 0;
+end;
+
+function TXICA_TwainDevice.ResultToCapabilityRec(const Value: TW_UINT16): TCapabilityRet;
+begin
+  case Value of
+  TWRC_SUCCESS: Result:= crSuccess;
+  else case GetReturnStatus of  //Error, get more on the error, and return result}
+         TWCC_CAPUNSUPPORTED: Result:= crUnsupported;
+         TWCC_CAPBADOPERATION: Result:= crBadOperation;
+         TWCC_CAPSEQERROR: Result:= crDependencyError;
+         TWCC_LOWMEMORY: Result:= crLowMemory;
+         TWCC_SEQERROR: Result:= crInvalidState;
+         else Result:= crBadOperation;
+       end;
+  end;
+end;
+
+function TXICA_TwainDevice.GetCapabilityRec(const ACapabilityId: TW_UINT16;
+                                            out Handle: HGLOBAL; Mode: TW_UINT16; out Container: TW_UINT16): TW_UINT16;
+var
+  CapabilityInfo: TW_CAPABILITY;
+
+begin
+  //Source must be loaded
+  if Opened then
+  begin
+    //Fill structure
+    CapabilityInfo.Cap:= ACapabilityId;
+    CapabilityInfo.ConType:= TWON_DONTCARE16;
+    CapabilityInfo.hContainer:= 0;
+
+    //Call DSM_Entry and store return
+    Result:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, Mode, @CapabilityInfo);
+
+    if (Result = TWRC_SUCCESS) then
+    begin
+      Handle:= CapabilityInfo.hContainer;
+      Container:= CapabilityInfo.ConType;
+    end
+  end
+  else Result:= TWRC_DATANOTAVAILABLE;
+end;
+
+function TXICA_TwainDevice.SetCapabilityRec(const ACapabilityId: TW_UINT16;
+                                            const CapabilityType: TW_UINT16; const DataHandle: HGLOBAL): TW_UINT16;
+var
+  CapabilityInfo: TW_CAPABILITY;
+
+begin
+  //Source must be loaded
+  if Opened then
+  begin
+    //Fill structure
+    CapabilityInfo.Cap:= ACapabilityId;
+    CapabilityInfo.ConType:= CapabilityType;
+    CapabilityInfo.hContainer:= DataHandle;
+
+    //Call DSM_Entry to store data
+    Result:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, MSG_SET, @CapabilityInfo);
+  end
+  else Result:= TWRC_DATANOTAVAILABLE;
+end;
+
+function TXICA_TwainDevice.GetCapability(const ACapabilityId: TW_UINT16;  const AMode: TW_UINT16;
+                                         out CapabilityType: TW_UINT16; out ACapabilityValue): TW_UINT16;
+var
+  OneV: pTW_ONEVALUE;
+  Container: TW_UINT16;
+  MemHandle: HGLOBAL;
+
+begin
+  MemHandle:= 0;
+
+  Result:= GetCapabilityRec(ACapabilityId, MemHandle, AMode, {%H-}Container);
+  if (Result = TWRC_SUCCESS) then
+  begin
+    if (Container = TWON_ONEVALUE) then
+    try
+       //Obtain structure pointer
+       OneV:= DSM_LockMemory(MemHandle);
+       if (OneV = nil) then exit(TWRC_DATANOTAVAILABLE);
+
+       CapabilityType:= OneV^.ItemType;
+
+       case CapabilityType of
+       TWTY_INT8   : Shortint(ACapabilityValue):= pTW_INT8(@OneV^.Item)^;
+       TWTY_UINT8  : Byte(ACapabilityValue):= pTW_UINT8(@OneV^.Item)^;
+       TWTY_INT16,
+       44 {TWTY_HANDLE} : Smallint(ACapabilityValue):= pTW_INT16(@OneV^.Item)^;
+       TWTY_UINT16 : Word(ACapabilityValue):= pTW_UINT16(@OneV^.Item)^;
+       TWTY_INT32  : Integer(ACapabilityValue):= pTW_INT32(@OneV^.Item)^;
+       TWTY_UINT32,
+       43 {TWTY_MEMREF} : LongWord(ACapabilityValue):= pTW_UINT32(@OneV^.Item)^;
+       TWTY_BOOL   : Boolean(ACapabilityValue):= pTW_BOOL(@OneV^.Item)^;
+       TWTY_FIX32  : Single(ACapabilityValue):= Fix32ToFloat(pTW_FIX32(@OneV^.Item)^);
+       //TWTY_FRAME
+       TWTY_STR32,
+       TWTY_STR64,
+       TWTY_STR128,
+       TWTY_STR255 : String(ACapabilityValue):= String(PAnsiChar(@OneV^.Item));
+       else Result:= TWRC_DATANOTAVAILABLE;
+       end;
+
+    finally
+       //Unlock memory
+       DSM_UnlockMemory(MemHandle);
+    end;
+
+    //Unallocate memory
+    DSM_Free(MemHandle);
+  end;
+end;
+
+function TXICA_TwainDevice.GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
+                                         out ACapabilityValue, ACapabilityDefaultValue): TXICA_PropertyFlags;
+var
+   CapOps   : TCapabilityOperations;
+
+begin
+  Result:= [];
+  CapOps:= CapabilitySupportedOp(ACapabilityId);
+  if (capGet in CapOps) then Result:= Result+[prop_READ];
+  if (capSet in CapOps) then Result:= Result+[prop_WRITE];
+
+  if (capGetCurrent in CapOps) then GetCapability(ACapabilityId, MSG_GETCURRENT, CapabilityType, ACapabilityValue);
+  if (capGetDefault in CapOps) then GetCapability(ACapabilityId, MSG_GETDEFAULT, CapabilityType, ACapabilityDefaultValue);
+end;
+
+function TXICA_TwainDevice.GetCapability(const ACapabilityId: TW_UINT16; out CapabilityType: TW_UINT16;
+                                         out ACapabilityValue, ACapabilityDefaultValue; out ACapabilityListValues): TXICA_PropertyFlags;
+var
+   CapOps   : TCapabilityOperations;
+   OneV     : pTW_ONEVALUE;
+   ArrayV   : pTW_ARRAY;
+   RangeV   : pTW_RANGE;
+   NumItems,
+   ItemSize : Integer;
+   Data     : Pointer;
+   CurItem  : Integer;
+   Container: TW_UINT16;
+   MemHandle: HGLOBAL;
+
+begin
+  MemHandle:= 0;
+  Result:= [];
+
+  CapOps:= CapabilitySupportedOp(ACapabilityId);
+  if (capGet in CapOps) then Result:= Result+[prop_READ];
+  if (capSet in CapOps) then Result:= Result+[prop_WRITE];
+
+  if (capGet in CapOps) and (GetCapabilityRec(ACapabilityId, MemHandle, MSG_GET, {%H-}Container) = TWRC_SUCCESS) then
+  try
+
+     Case Container of
+       TWON_ONEVALUE: begin
+          //Obtain OneValue pointer
+          OneV:= DSM_LockMemory(MemHandle);
+          if (OneV = nil) then exit;
+
+          CapabilityType:= OneV^.ItemType;
+
+          case CapabilityType of
+          TWTY_INT8   : Shortint(ACapabilityValue):= pTW_INT8(@OneV^.Item)^;
+          TWTY_UINT8  : Byte(ACapabilityValue):= pTW_UINT8(@OneV^.Item)^;
+          TWTY_INT16,
+          44 {TWTY_HANDLE} : Smallint(ACapabilityValue):= pTW_INT16(@OneV^.Item)^;
+          TWTY_UINT16 : Word(ACapabilityValue):= pTW_UINT16(@OneV^.Item)^;
+          TWTY_INT32  : Integer(ACapabilityValue):= pTW_INT32(@OneV^.Item)^;
+          TWTY_UINT32,
+          43 {TWTY_MEMREF} : LongWord(ACapabilityValue):= pTW_UINT32(@OneV^.Item)^;
+          TWTY_BOOL   : Boolean(ACapabilityValue):= pTW_BOOL(@OneV^.Item)^;
+          TWTY_FIX32  : Single(ACapabilityValue):= Fix32ToFloat(pTW_FIX32(@OneV^.Item)^);
+          //TWTY_FRAME
+          TWTY_STR32,
+          TWTY_STR64,
+          TWTY_STR128,
+          TWTY_STR255 : String(ACapabilityValue):= String(PAnsiChar(@OneV^.Item));
+          end;
+       end;
+       TWON_ARRAY,
+       TWON_ENUMERATION: begin
+          //Obtain Array/Enumeration pointer
+          ArrayV:= DSM_LockMemory(MemHandle);
+          if (ArrayV = nil) then exit;
+
+          Result:= Result+[prop_LIST];
+
+          //Prepare to list items
+          //  The two records have the first two fields (ItemType, NumItems) in the same position, so we have no problems.
+          CapabilityType:= ArrayV^.ItemType;
+          NumItems:= ArrayV^.NumItems;
+          //  To get Data Pointer to First List Item we use a Cast to skip TW_ENUMERATION CurrentIndex, DefaultIndex
+          if (Container = TWON_ARRAY)
+          then Data:= @ArrayV^.ItemList[0]
+          else Data:= @pTW_ENUMERATION(ArrayV)^.ItemList[0];
+
+          ItemSize:= TW_TypeSize(CapabilityType);
+
+          case CapabilityType of
+            TWTY_INT8   : begin
+              SetLength(TArrayShortint(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to ArrayV^.NumItems-1 do
+              begin
+                TArrayShortint(ACapabilityListValues)[CurItem]:= pTW_INT8(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Shortint(ACapabilityValue):= TArrayShortint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Shortint(ACapabilityDefaultValue):= TArrayShortint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_UINT8  : begin
+              SetLength(TArrayByte(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArrayByte(ACapabilityListValues)[CurItem]:= pTW_UINT8(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Byte(ACapabilityValue):= TArrayByte(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Byte(ACapabilityDefaultValue):= TArrayByte(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_INT16,
+            44 {TWTY_HANDLE} : begin
+              SetLength(TArraySmallint(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArraySmallint(ACapabilityListValues)[CurItem]:= pTW_INT16(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Smallint(ACapabilityValue):= TArraySmallint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Smallint(ACapabilityDefaultValue):= TArraySmallint(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_UINT16 : begin
+              SetLength(TArrayWord(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArrayWord(ACapabilityListValues)[CurItem]:= pTW_UINT16(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Word(ACapabilityValue):= TArrayWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Word(ACapabilityDefaultValue):= TArrayWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_INT32  : begin
+              SetLength(TArrayInteger(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArrayInteger(ACapabilityListValues)[CurItem]:= pTW_INT32(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Integer(ACapabilityValue):= TArrayInteger(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Integer(ACapabilityDefaultValue):= TArrayInteger(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_UINT32,
+            43 {TWTY_MEMREF} : begin
+              SetLength(TArrayLongWord(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArrayLongWord(ACapabilityListValues)[CurItem]:= pTW_UINT32(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                LongWord(ACapabilityValue):= TArrayLongWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                LongWord(ACapabilityDefaultValue):= TArrayLongWord(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_BOOL   : begin
+              SetLength(TArrayBoolean(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArrayBoolean(ACapabilityListValues)[CurItem]:= pTW_BOOL(Data)^;
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Boolean(ACapabilityValue):= TArrayBoolean(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Boolean(ACapabilityDefaultValue):= TArrayBoolean(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            TWTY_FIX32  : begin
+              SetLength(TArraySingle(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TArraySingle(ACapabilityListValues)[CurItem]:= Fix32ToFloat(pTW_FIX32(Data)^);
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                Single(ACapabilityValue):= TArraySingle(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                Single(ACapabilityDefaultValue):= TArraySingle(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+            //TWTY_FRAME
+            TWTY_STR32,
+            TWTY_STR64,
+            TWTY_STR128,
+            TWTY_STR255 : begin
+              SetLength(TStringArray(ACapabilityListValues), NumItems);
+              //Copy items
+              for CurItem:= 0 to NumItems-1 do
+              begin
+                TStringArray(ACapabilityListValues)[CurItem]:= String(PAnsiChar(Data));
+
+                //Move memory to the next Data
+                inc(PByte(Data), ItemSize);
+              end;
+
+              if (Container = TWON_ENUMERATION) then
+              begin
+                String(ACapabilityValue):= TStringArray(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.CurrentIndex];
+                String(ACapabilityDefaultValue):= TStringArray(ACapabilityListValues)[pTW_ENUMERATION(ArrayV)^.DefaultIndex];
+              end;
+            end;
+          end;
+
+         if (Container = TWON_ARRAY) then
+         begin
+           //????????
+           GetCapability(ACapabilityId, MSG_GETCURRENT, CapabilityType, ACapabilityValue);
+           GetCapability(ACapabilityId, MSG_GETDEFAULT, CapabilityType, ACapabilityDefaultValue);
+         end;
+       end;
+       TWON_RANGE: begin
+         RangeV:= GlobalLock(MemHandle);
+         if (RangeV = nil) then exit;
+
+         Result:= Result+[prop_RANGE];
+
+         case RangeV^.ItemType of
+         TWTY_INT8   : begin
+           SetLength(TArrayShortint(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT8(@RangeV^.MinValue)^;
+           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT8(@RangeV^.MaxValue)^;
+           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT8(@RangeV^.StepSize)^;
+           Shortint(TArrayShortint(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT8(@RangeV^.DefaultValue)^;
+           Shortint(ACapabilityDefaultValue):= pTW_INT8(@RangeV^.DefaultValue)^;
+           Shortint(ACapabilityValue):= pTW_INT8(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_UINT8  : begin
+           SetLength(TArrayByte(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT8(@RangeV^.MinValue)^;
+           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT8(@RangeV^.MaxValue)^;
+           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT8(@RangeV^.StepSize)^;
+           Byte(TArrayByte(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_UINT8(@RangeV^.DefaultValue)^;
+           Byte(ACapabilityDefaultValue):= pTW_UINT8(@RangeV^.DefaultValue)^;
+           Byte(ACapabilityValue):= pTW_UINT8(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_INT16, {TWTY_HANDLE}
+         44          : begin
+           SetLength(TArraySmallint(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT16(@RangeV^.MinValue)^;
+           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT16(@RangeV^.MaxValue)^;
+           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT16(@RangeV^.StepSize)^;
+           Smallint(TArraySmallint(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT16(@RangeV^.DefaultValue)^;
+           Smallint(ACapabilityDefaultValue):= pTW_INT16(@RangeV^.DefaultValue)^;
+           Smallint(ACapabilityValue):= pTW_INT16(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_UINT16 : begin
+           SetLength(TArrayWord(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT16(@RangeV^.MinValue)^;
+           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT16(@RangeV^.MaxValue)^;
+           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT16(@RangeV^.StepSize)^;
+           Word(TArrayWord(ACapabilityListValues)[prop_RANGE_DEFAULT]) := pTW_UINT16(@RangeV^.DefaultValue)^;
+           Word(ACapabilityDefaultValue):= pTW_UINT16(@RangeV^.DefaultValue)^;
+           Word(ACapabilityValue):= pTW_UINT16(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_INT32  : begin
+           SetLength(TArrayInteger(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_INT32(@RangeV^.MinValue)^;
+           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_INT32(@RangeV^.MaxValue)^;
+           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_INT32(@RangeV^.StepSize)^;
+           Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_INT32(@RangeV^.DefaultValue)^;
+           Integer(ACapabilityDefaultValue):= pTW_INT32(@RangeV^.DefaultValue)^;
+           Integer(ACapabilityValue):= pTW_INT32(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_UINT32, {TWTY_MEMREF}
+         43           : begin
+           SetLength(TArrayLongWord(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_MIN]):= pTW_UINT32(@RangeV^.MinValue)^;
+           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_MAX]):= pTW_UINT32(@RangeV^.MaxValue)^;
+           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_STEP]):= pTW_UINT32(@RangeV^.StepSize)^;
+           LongWord(TArrayLongWord(ACapabilityListValues)[prop_RANGE_DEFAULT]):= pTW_UINT32(@RangeV^.DefaultValue)^;
+           LongWord(ACapabilityDefaultValue):= pTW_UINT32(@RangeV^.DefaultValue)^;
+           LongWord(ACapabilityValue):= pTW_UINT32(@RangeV^.CurrentValue)^;
+         end;
+         TWTY_FIX32  : begin
+           SetLength(TArraySingle(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_MIN]):= Fix32ToFloat(pTW_FIX32(@RangeV^.MinValue)^);
+           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_MAX]):= Fix32ToFloat(pTW_FIX32(@RangeV^.MaxValue)^);
+           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_STEP]):= Fix32ToFloat(pTW_FIX32(@RangeV^.StepSize)^);
+           Single(TArraySingle(ACapabilityListValues)[prop_RANGE_DEFAULT]):= Fix32ToFloat(pTW_FIX32(@RangeV^.DefaultValue)^);
+           Single(ACapabilityDefaultValue):= Fix32ToFloat(pTW_FIX32(@RangeV^.DefaultValue)^);
+           Single(ACapabilityValue):= Fix32ToFloat(pTW_FIX32(@RangeV^.CurrentValue)^);
+         end;
+         end;
+     end;
+   end;
+
+  finally
+    if (MemHandle <> 0) then
+    begin
+      //Unlock memory
+      DSM_UnlockMemory(MemHandle);
+      //Unallocate memory
+      DSM_Free(MemHandle);
+    end;
+  end;
+end;
+
+function TXICA_TwainDevice.SetCapability(const ACapabilityId: TW_UINT16; const CapabilityType: TW_UINT16; const ACapabilityValue): Boolean;
+var
+  Data: HGLOBAL;
+  OneV: pTW_ONEVALUE;
+  ItemSize,
+  CapSize: Integer;
+
+begin
+  Result:= False;
+
+  //Allocate enough memory for the TW_ONEVALUE and obtain pointer}
+  CapSize := TW_TypeSize(CapabilityType);
+  //npeter: TW_ONEVALUE minimal size !!!
+  //I think to meet the specifications the
+  //Item's size must be at least sizeof(TW_UINT32)!
+  //when I did it, some mistic errors on some drivers went gone
+  if (CapSize < sizeof(TW_UINT32)) then ItemSize:= sizeof(TW_UINT32) else ItemSize:= CapSize;
+
+  try
+     Data:= DSM_Alloc(sizeof({%H-}OneV^.ItemType) + ItemSize);    //GlobalAlloc(GHND, sizeof({%H-}OneV^.ItemType) + ItemSize2);
+     if (Data <> 0) then
+     begin
+       OneV:= DSM_LockMemory(Data);
+       if (OneV <> nil) then
+       begin
+         //Fill value
+         OneV^.ItemType := CapabilityType;
+
+         case CapabilityType of
+         TWTY_INT8   : pTW_INT8(@OneV^.Item)^:= Shortint(ACapabilityValue);
+         TWTY_UINT8  : pTW_UINT8(@OneV^.Item)^:= Byte(ACapabilityValue);
+         TWTY_INT16,
+         44 {TWTY_HANDLE} : pTW_INT16(@OneV^.Item)^:= Smallint(ACapabilityValue);
+         TWTY_UINT16 : pTW_UINT16(@OneV^.Item)^:= Word(ACapabilityValue);
+         TWTY_INT32  : pTW_INT32(@OneV^.Item)^:= Integer(ACapabilityValue);
+         TWTY_UINT32,
+         43 {TWTY_MEMREF} : pTW_UINT32(@OneV^.Item)^:= LongWord(ACapabilityValue);
+         TWTY_BOOL   : pTW_BOOL(@OneV^.Item)^:= Boolean(ACapabilityValue);
+         TWTY_FIX32  : pTW_FIX32(@OneV^.Item)^:= FloatToFix32(Single(ACapabilityValue));
+         //TWTY_FRAME
+         TWTY_STR32,
+         TWTY_STR64,
+         TWTY_STR128,
+         TWTY_STR255 : StrLCopy(PAnsiChar(@OneV^.Item), PAnsiChar(String(ACapabilityValue)), CapSize);
+         else exit(False);
+         end;
+
+         //Unlock Data
+         DSM_UnlockMemory(Data);
+
+         //Set Value
+         Result:= (SetCapabilityRec(ACapabilityId, TWON_ONEVALUE, Data) = TWRC_SUCCESS);
+
+         OneV:= nil;
+       end;
+
+     end;
+
+  finally
+     if (OneV <> nil) then DSM_UnlockMemory(Data);
+     if (Data <> 0) then DSM_Free(Data);
+  end;
+end;
+
+function TXICA_TwainDevice.CapabilitySupportedOp(const ACapabilityId: TW_UINT16): TCapabilityOperations;
+var
+   CapabilityInfo: TW_CAPABILITY;
+   OneV: pTW_ONEVALUE;
+
+begin
+  Result:= [];
+
+  //Fill structure
+  CapabilityInfo.Cap:= ACapabilityId;
+  CapabilityInfo.ConType:= TWON_ONEVALUE;
+  CapabilityInfo.hContainer:= 0;
+
+  //Call DSM_Entry and store return
+  lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, MSG_QUERYSUPPORT, @CapabilityInfo);
+
+  if (lRes = TWRC_SUCCESS) then
+  try
+     //Obtain structure pointer
+     OneV:= DSM_LockMemory(CapabilityInfo.hContainer);
+     if (OneV = nil) then exit;
+
+     if (OneV^.Item and TWQC_GET)=TWQC_GET then Result:= [capGet];
+     if (OneV^.Item and TWQC_SET)=TWQC_SET then Result:= Result+[capSet];
+     if (OneV^.Item and TWQC_GETDEFAULT)=TWQC_GETDEFAULT then Result:= Result+[capGetDefault];
+     if (OneV^.Item and TWQC_GETCURRENT)=TWQC_GETCURRENT then Result:= Result+[capGetCurrent];
+     if (OneV^.Item and TWQC_RESET)=TWQC_RESET then Result:= Result+[capReset];
+     if (OneV^.Item and TWQC_SETCONSTRAINT)=TWQC_SETCONSTRAINT then Result:= Result+[capSetConstraint];
+
+  finally
+     //Unlock memory
+     DSM_UnlockMemory(CapabilityInfo.hContainer);
+
+     //Unallocate memory
+     DSM_Free(CapabilityInfo.hContainer);
+  end;
 end;
 
 function TXICA_TwainDevice.GetCapabilitySupportedOp(const ACapabilityId: TW_UINT16): TCapabilityOperations;
 var
    prevState: Boolean;
-   CapabilityInfo: TW_CAPABILITY;
-   OneV: pTW_ONEVALUE;
 
 begin
   Result:= [];
@@ -1200,37 +1485,7 @@ begin
      //Source must be loaded
      OpenDS;
 
-     if Opened then
-     begin
-       //Fill structure
-       CapabilityInfo.Cap:= ACapabilityId;
-       CapabilityInfo.ConType:= TWON_ONEVALUE;
-       CapabilityInfo.hContainer:= 0;
-
-       //Call DSM_Entry and store return
-       lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_CAPABILITY, MSG_QUERYSUPPORT, @CapabilityInfo);
-
-       if (lRes = TWRC_SUCCESS) then
-       try
-          //Obtain structure pointer
-          OneV:= DSM_LockMemory(CapabilityInfo.hContainer);
-          if (OneV = nil) then exit;
-
-          if (OneV^.Item and TWQC_GET)=TWQC_GET then Result:= [capGet];
-          if (OneV^.Item and TWQC_SET)=TWQC_SET then Result:= Result+[capSet];
-          if (OneV^.Item and TWQC_GETDEFAULT)=TWQC_GETDEFAULT then Result:= Result+[capGetDefault];
-          if (OneV^.Item and TWQC_GETCURRENT)=TWQC_GETCURRENT then Result:= Result+[capGetCurrent];
-          if (OneV^.Item and TWQC_RESET)=TWQC_RESET then Result:= Result+[capReset];
-          if (OneV^.Item and TWQC_SETCONSTRAINT)=TWQC_SETCONSTRAINT then Result:= Result+[capSetConstraint];
-
-       finally
-          //Unlock memory
-          DSM_UnlockMemory(CapabilityInfo.hContainer);
-
-          //Unallocate memory
-          DSM_Free(CapabilityInfo.hContainer);
-       end;
-     end;
+     if Opened then Result:= CapabilitySupportedOp(ACapabilityId);
 
   finally
      if not(prevState) then CloseDS;

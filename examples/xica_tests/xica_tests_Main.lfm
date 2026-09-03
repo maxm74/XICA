@@ -36,10 +36,10 @@ object XICATests: TXICATests
   end
   object panDownload: TPanel
     Left = 281
-    Height = 44
+    Height = 93
     Top = 4
     Width = 378
-    ClientHeight = 44
+    ClientHeight = 93
     ClientWidth = 378
     TabOrder = 3
     object btDownload: TButton
@@ -50,6 +50,38 @@ object XICATests: TXICATests
       Caption = 'Download'
       TabOrder = 0
       OnClick = btDownloadClick
+    end
+    object Label5: TLabel
+      Left = 120
+      Height = 15
+      Top = 7
+      Width = 21
+      Caption = 'Res:'
+    end
+    object edRes: TSpinEdit
+      Left = 152
+      Height = 23
+      Top = 0
+      Width = 50
+      MaxValue = 2
+      TabOrder = 1
+    end
+    object btSetRes: TButton
+      Left = 240
+      Height = 25
+      Top = 0
+      Width = 27
+      Caption = 'Set'
+      TabOrder = 2
+    end
+    object btGetRes: TButton
+      Left = 208
+      Height = 25
+      Top = 0
+      Width = 27
+      Caption = 'Get'
+      TabOrder = 3
+      OnClick = btGetResClick
     end
   end
   object Label2: TLabel

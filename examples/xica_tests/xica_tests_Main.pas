@@ -23,17 +23,22 @@ type
   TXICATests = class(TForm)
     btListDevices: TButton;
     btDownload: TButton;
+    btGetRes: TButton;
     btUI_Select: TButton;
     btSettings: TButton;
+    btSetRes: TButton;
     edItem: TSpinEdit;
+    edRes: TSpinEdit;
     edManager: TSpinEdit;
     Label2: TLabel;
     Label3: TLabel;
     Label4: TLabel;
+    Label5: TLabel;
     Memo1: TMemo;
     edDevice: TSpinEdit;
     panDownload: TPanel;
     procedure btDownloadClick(Sender: TObject);
+    procedure btGetResClick(Sender: TObject);
     procedure btListDevicesClick(Sender: TObject);
     procedure btSettingsClick(Sender: TObject);
     procedure btUI_SelectClick(Sender: TObject);
@@ -209,8 +214,48 @@ begin
      c:= curItem.Download('', 'xica_tests', '.bmp', xifBMP);
      Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
    end
-   else Memo1.Lines.Add('Downloading: NO Selected Item');
+   else Memo1.Lines.Add('ERROR: Downloading - NO Selected Item');
 
+end;
+
+procedure TXICATests.btGetResClick(Sender: TObject);
+var
+   ResX, ResY: Integer;
+   curManager: TXICA_DeviceManager;
+   curDevice: TXICA_Device;
+   curItem: TXICA_Item;
+   curNameM, curNameD, curNameI: TKeyString;
+
+begin
+   if (selDevice = nil) then
+   begin
+     XICA_Manager.Get(edManager.Value, curManager, curNameM);
+     if (curManager <> nil) then
+     begin
+       curManager.Get(edDevice.Value, curDevice, curNameD);
+       if (curDevice <> nil) then
+       begin
+         selDevice:= curDevice;
+         curDevice.Get(edItem.Value, curItem, curNameI);
+       end;
+     end;
+   end
+   else
+   begin
+     curNameM:= selDevice.Owner.Name;
+     curNameD:= selDevice.Name;
+     if (selDevice.SelectedIndex >= 0)
+     then selDevice.Get(selDevice.SelectedIndex, curItem, curNameI)
+     else curItem:= nil;
+   end;
+
+   if (curItem <> nil) then
+   begin
+     if curItem.GetResolution(ResX, ResY)
+     then edRes.Value:= ResX
+     else Memo1.Lines.Add('ERROR: GetResolution');
+   end
+   else Memo1.Lines.Add('ERROR: NO Selected Item');
 end;
 
 end.

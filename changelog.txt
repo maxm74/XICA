@@ -1,5 +1,10 @@
 XICA CHANGE LOG
 ======================
+2026/09/03 Twain Manager: Moved Capability Methods in Device Class;
+                          Added Capability Get overloads;
+                          Added Resolution Get/Set methods;
+                          Changed Calculated Category with real Set attempt;
+
 2026/08/31 Classes: Avoid Infinite loop if we use Count in _EnumerateXX
            Twain Manager: Test Camera Type with ICAP_EXPOSURETIME
 
