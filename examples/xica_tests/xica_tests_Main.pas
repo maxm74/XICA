@@ -21,31 +21,45 @@ type
   { TXICATests }
 
   TXICATests = class(TForm)
+    btGetBright: TButton;
     btListDevices: TButton;
     btDownload: TButton;
     btGetRes: TButton;
+    btSetBright: TButton;
     btUI_Select: TButton;
     btSettings: TButton;
     btSetRes: TButton;
+    btManSelect: TButton;
     edItem: TSpinEdit;
     edRes: TSpinEdit;
     edManager: TSpinEdit;
+    edBright: TSpinEdit;
     Label2: TLabel;
     Label3: TLabel;
     Label4: TLabel;
     Label5: TLabel;
+    Label6: TLabel;
     Memo1: TMemo;
     edDevice: TSpinEdit;
     panDownload: TPanel;
     procedure btDownloadClick(Sender: TObject);
+    procedure btGetBrightClick(Sender: TObject);
     procedure btGetResClick(Sender: TObject);
     procedure btListDevicesClick(Sender: TObject);
+    procedure btManSelectClick(Sender: TObject);
+    procedure btSetBrightClick(Sender: TObject);
+    procedure btSetResClick(Sender: TObject);
     procedure btSettingsClick(Sender: TObject);
     procedure btUI_SelectClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   private
+    selManager: TXICA_DeviceManager;
     selDevice: TXICA_Device;
+    selItem: TXICA_Item;
+    curNameM, curNameD, curNameI: TKeyString;
+
+    procedure GetSelectedItem;
 
   public
 
@@ -74,6 +88,36 @@ end;
 procedure TXICATests.FormDestroy(Sender: TObject);
 begin
   if (XICA_Manager <> nil) then XICA_Manager.Free;
+end;
+
+procedure TXICATests.GetSelectedItem;
+var
+   curManager: TXICA_DeviceManager;
+   curDevice: TXICA_Device;
+   curItem: TXICA_Item;
+
+begin
+  if (selDevice = nil) then
+  begin
+    XICA_Manager.Get(edManager.Value, curManager, curNameM);
+    if (curManager <> nil) then
+    begin
+      curManager.Get(edDevice.Value, curDevice, curNameD);
+      if (curDevice <> nil) then
+      begin
+        selDevice:= curDevice;
+        curDevice.Get(edItem.Value, curItem, curNameI);
+      end;
+    end;
+  end
+  else
+  begin
+    curNameM:= selDevice.Owner.Name;
+    curNameD:= selDevice.Name;
+    if (selDevice.SelectedIndex >= 0)
+    then selDevice.Get(selDevice.SelectedIndex, curItem, curNameI)
+    else curItem:= nil;
+  end;
 end;
 
 procedure TXICATests.btListDevicesClick(Sender: TObject);
@@ -149,6 +193,55 @@ begin
   end;
 end;
 
+procedure TXICATests.btManSelectClick(Sender: TObject);
+begin
+  XICA_Manager.Get(edManager.Value, selManager, curNameM);
+  if (selManager <> nil) then
+  begin
+    selManager.Get(edDevice.Value, selDevice, curNameD);
+    if (selDevice <> nil) then selDevice.Get(edItem.Value, selItem, curNameI);
+  end;
+
+  panDownload.Enabled:= (selManager <> nil) and (selDevice <> nil) and (selItem <> nil);
+end;
+
+procedure TXICATests.btSetBrightClick(Sender: TObject);
+var
+   v: Integer;
+
+begin
+   if (selItem <> nil) then
+   begin
+     if selItem.SetBrightness(edBright.Value)
+     then begin
+            if selItem.GetBrightness(v)
+            then Memo1.Lines.Add('GetBrightness Value='+IntToStr(v))
+            else Memo1.Lines.Add('ERROR: GetBrightness');
+          end
+     else Memo1.Lines.Add('ERROR: GetBrightness');
+   end
+   else Memo1.Lines.Add('ERROR: NO Selected Item');
+end;
+
+procedure TXICATests.btSetResClick(Sender: TObject);
+var
+   ResX, ResY: Integer;
+
+begin
+  GetSelectedItem;
+  if (selItem <> nil) then
+  begin
+    if selItem.SetResolution(edRes.Value, edRes.Value)
+    then begin
+           if selItem.GetResolution(ResX, ResY)
+           then Memo1.Lines.Add('GetResolution X='+IntToStr(ResX)+' Y='+IntToStr(ResY))
+           else Memo1.Lines.Add('ERROR: GetResolution');
+         end
+    else Memo1.Lines.Add('ERROR: SetResolution');
+  end
+  else Memo1.Lines.Add('ERROR: NO Selected Item');
+end;
+
 procedure TXICATests.btSettingsClick(Sender: TObject);
 begin
   if (selDevice = nil) then btUI_SelectClick(Sender);
@@ -169,89 +262,62 @@ begin
   selDevice:= XICA_Manager.SelectDeviceDialog;
   if (selDevice <> nil) then
   begin
-    edManager.Value:= XICA_Manager.Find(selDevice.Owner);
-    edDevice.Value:= selDevice.Index;
+    selManager:= selDevice.Owner;
+
+    selItem:= selDevice.Selected;
+
     edItem.MaxValue:= selDevice.Count-1;       //to-do Get in List may Enumerate Items
     edItem.Value:= selDevice.SelectedIndex;
   end;
+
+  panDownload.Enabled:= (selManager <> nil) and (selDevice <> nil) and (selItem <> nil);
 end;
 
 procedure TXICATests.btDownloadClick(Sender: TObject);
 var
    c: Integer;
-   curManager: TXICA_DeviceManager;
-   curDevice: TXICA_Device;
-   curItem: TXICA_Item;
-   curNameM, curNameD, curNameI: TKeyString;
 
 begin
-   if (selDevice = nil) then
-   begin
-     XICA_Manager.Get(edManager.Value, curManager, curNameM);
-     if (curManager <> nil) then
-     begin
-       curManager.Get(edDevice.Value, curDevice, curNameD);
-       if (curDevice <> nil) then
-       begin
-         selDevice:= curDevice;
-         curDevice.Get(edItem.Value, curItem, curNameI);
-       end;
-     end;
-   end
-   else
-   begin
-     curNameM:= selDevice.Owner.Name;
-     curNameD:= selDevice.Name;
-     if (selDevice.SelectedIndex >= 0)
-     then selDevice.Get(selDevice.SelectedIndex, curItem, curNameI)
-     else curItem:= nil;
-   end;
-
-   if (curItem <> nil) then
+   if (selItem <> nil) then
    begin
      Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
-     curItem.SetPages(0);
-     c:= curItem.Download('', 'xica_tests', '.bmp', xifBMP);
+     selItem.SetPages(0);
+     c:= selItem.Download('', 'xica_tests', '.bmp', xifBMP);
      Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
    end
    else Memo1.Lines.Add('ERROR: Downloading - NO Selected Item');
 
 end;
 
+procedure TXICATests.btGetBrightClick(Sender: TObject);
+var
+   v, d, min, max, step: Integer;
+
+begin
+   if (selItem <> nil) then
+   begin
+     if selItem.GetBrightness(v, d, min, max, step)
+     then begin
+            edBright.MinValue:= min;
+            edBright.MaxValue:= max;
+            edBright.Increment:= step;
+            edBright.Value:= v;
+            Memo1.Lines.Add('GetBrightness Current='+IntToStr(v)+' Default='+IntToStr(d)+#13#10+
+                            ' Min='+IntToStr(min)+' Max='+IntToStr(max)+' Step='+IntToStr(step));
+          end
+     else Memo1.Lines.Add('ERROR: GetBrightness');
+   end
+   else Memo1.Lines.Add('ERROR: NO Selected Item');
+end;
+
 procedure TXICATests.btGetResClick(Sender: TObject);
 var
    ResX, ResY: Integer;
-   curManager: TXICA_DeviceManager;
-   curDevice: TXICA_Device;
-   curItem: TXICA_Item;
-   curNameM, curNameD, curNameI: TKeyString;
 
 begin
-   if (selDevice = nil) then
+   if (selItem <> nil) then
    begin
-     XICA_Manager.Get(edManager.Value, curManager, curNameM);
-     if (curManager <> nil) then
-     begin
-       curManager.Get(edDevice.Value, curDevice, curNameD);
-       if (curDevice <> nil) then
-       begin
-         selDevice:= curDevice;
-         curDevice.Get(edItem.Value, curItem, curNameI);
-       end;
-     end;
-   end
-   else
-   begin
-     curNameM:= selDevice.Owner.Name;
-     curNameD:= selDevice.Name;
-     if (selDevice.SelectedIndex >= 0)
-     then selDevice.Get(selDevice.SelectedIndex, curItem, curNameI)
-     else curItem:= nil;
-   end;
-
-   if (curItem <> nil) then
-   begin
-     if curItem.GetResolution(ResX, ResY)
+     if selItem.GetResolution(ResX, ResY)
      then edRes.Value:= ResX
      else Memo1.Lines.Add('ERROR: GetResolution');
    end

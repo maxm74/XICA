@@ -618,7 +618,6 @@ function TXICA_TwainItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
 var
    prevState: Boolean;
    sXRes, sYRes: Single;
-   capType: TW_UINT16;
 
 begin
   Result:= False;
@@ -708,19 +707,140 @@ begin
 end;
 
 function TXICA_TwainItem.GetBrightness(out Current: Integer): Boolean;
+var
+   prevState: Boolean;
+   sValue: Single;
+   capType: TW_UINT16;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       Result:= (GetCapability(ICAP_BRIGHTNESS, MSG_GETCURRENT, capType, sValue) = TWRC_SUCCESS);
+
+       if Result then Current:= Trunc(sValue);
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+var
+   prevState: Boolean;
+   pFlags: TXICA_PropertyFlags;
+   sCurrent, sDefault: Single;
+   sValues: TArraySingle;
+   capType: TW_UINT16;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       pFlags:= GetCapability(ICAP_BRIGHTNESS, capType, sCurrent, sDefault, sValues);
+
+       if (prop_READ in pFlags) then
+       begin
+         Current:= Trunc(sCurrent);
+         Default:= Trunc(sDefault);
+
+         if (prop_RANGE in pFlags) then
+         begin
+           AMin:= Trunc(sValues[prop_RANGE_MIN]);
+           AMax:= Trunc(sValues[prop_RANGE_MAX]);
+           AStep:= Trunc(sValues[prop_RANGE_STEP]);
+         end
+         else
+         if (prop_LIST in pFlags) then
+         begin
+           //MaxM: Some drivers (like the famous HP one in my office) give me
+           //      TW_ENUMERATION as Container type (accepted by the specifications),
+           //      but since I don't intend to keep the whole array and then pass
+           //      the index during the set phase...
+           //      I put -1000 +1000 as Range, the driver will adjust it for us. ;-)
+           AMin:= -1000;
+           AMax:= +1000;
+           //AMin:= -(Length(sValues) div 2); and store the whole array? Hard pass
+           //AMax:= +(Length(sValues) div 2);
+           AStep:= 1;
+         end;
+         Result:= True;
+       end;
+     end;
+
+  finally
+     sValues:= nil;
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.SetBrightness(const Value: Integer): Boolean;
+var
+   prevState: Boolean;
+   capType: TW_UINT16;
+   sValue: Single;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       sValue:= Value;
+
+       Result:= SetCapability(ICAP_BRIGHTNESS, TWTY_FIX32, sValue);
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetContrast(out Current: Integer): Boolean;
+var
+   prevState: Boolean;
+   sValue: Single;
+   capType: TW_UINT16;
+
 begin
+  Result:= False;
+  with TXICA_TwainDevice(rOwner) do
+  try
+     prevState:= Opened;
+
+     //Source must be loaded
+     OpenDS;
+
+     if Opened then
+     begin
+       Result:= (GetCapability(ICAP_CONTRAST, MSG_GETCURRENT, capType, sValue) = TWRC_SUCCESS);
+
+       if Result then Current:= Trunc(sValue);
+     end;
+
+  finally
+     if not(prevState) then CloseDS;
+  end;
 end;
 
 function TXICA_TwainItem.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;

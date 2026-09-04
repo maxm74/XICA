@@ -1,5 +1,9 @@
 XICA CHANGE LOG
 ======================
+2026/09/04 Classes: Added TXICA_Device.GetSelected overload that return TObject;
+           Twain Manager: Get/SetBrightness;
+           Internal Test: Change Select behavior; Get/SetBrightness;
+
 2026/09/03 Twain Manager: Moved Capability Methods in Device Class;
                           Added Capability Get overloads;
                           Added Resolution Get/Set methods;

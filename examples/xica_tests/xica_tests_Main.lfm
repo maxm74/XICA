@@ -20,8 +20,8 @@ object XICATests: TXICATests
   end
   object Memo1: TMemo
     Left = 0
-    Height = 343
-    Top = 102
+    Height = 341
+    Top = 104
     Width = 661
     Align = alBottom
     ScrollBars = ssAutoBoth
@@ -63,7 +63,6 @@ object XICATests: TXICATests
       Height = 23
       Top = 0
       Width = 50
-      MaxValue = 2
       TabOrder = 1
     end
     object btSetRes: TButton
@@ -73,6 +72,7 @@ object XICATests: TXICATests
       Width = 27
       Caption = 'Set'
       TabOrder = 2
+      OnClick = btSetResClick
     end
     object btGetRes: TButton
       Left = 208
@@ -82,6 +82,38 @@ object XICATests: TXICATests
       Caption = 'Get'
       TabOrder = 3
       OnClick = btGetResClick
+    end
+    object Label6: TLabel
+      Left = 120
+      Height = 15
+      Top = 35
+      Width = 31
+      Caption = 'Brigh:'
+    end
+    object edBright: TSpinEdit
+      Left = 152
+      Height = 23
+      Top = 28
+      Width = 50
+      TabOrder = 4
+    end
+    object btGetBright: TButton
+      Left = 208
+      Height = 25
+      Top = 28
+      Width = 27
+      Caption = 'Get'
+      TabOrder = 5
+      OnClick = btGetBrightClick
+    end
+    object btSetBright: TButton
+      Left = 240
+      Height = 25
+      Top = 28
+      Width = 27
+      Caption = 'Set'
+      TabOrder = 6
+      OnClick = btSetBrightClick
     end
   end
   object Label2: TLabel
@@ -134,8 +166,17 @@ object XICATests: TXICATests
     Height = 25
     Top = 71
     Width = 75
-    Caption = 'Settings'
+    Caption = 'UI Settings'
     TabOrder = 7
     OnClick = btSettingsClick
+  end
+  object btManSelect: TButton
+    Left = 183
+    Height = 25
+    Top = 79
+    Width = 75
+    Caption = 'Set Selected'
+    TabOrder = 8
+    OnClick = btManSelectClick
   end
 end
