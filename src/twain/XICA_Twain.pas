@@ -48,13 +48,11 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
 
+    function Download: Integer; overload; override;
+
   public
     destructor Destroy; override;
 
-    //Download the Item and return the number of files transfered.
-    // if multiple pages is downloaded then the file names are
-    // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
-    function Download(APath, AFileName, AExt: String): Integer; overload; override;
 
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
@@ -123,7 +121,7 @@ type
     function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; override;
 
     //Set Current Image Format
-    function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; override;
+    function SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean; override;
 
      //Get Current Image DataType
     function GetDataType(out Current: TXICA_DataType): Boolean; overload; override;
@@ -477,20 +475,9 @@ begin
   inherited Destroy;
 end;
 
-function TXICA_TwainItem.Download(APath, AFileName, AExt: String): Integer;
+function TXICA_TwainItem.Download: Integer;
 begin
   Result:= 0;
-
-    if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
-    then rDownload_Path:= APath
-    else rDownload_Path:= APath+DirectorySeparator;
-
-    if (rDownload_Path<>'') and not(ForceDirectories(rDownload_Path)) then exit;
-
-    rDownload_FileName:= AFileName;
-    rDownload_Ext:= AExt;
-    rDownload_Count:= 0;
-    rDownloaded:= False;
 
       { #todo 2 -oMaxM : Test if all Scanner is Synch }
       (*
@@ -507,7 +494,6 @@ begin
       if (lres = S_OK) and rDownloaded
       then Result:= rDownload_Count
       else Result:= 0;
-//  end;
 end;
 
 function TXICA_TwainItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
@@ -865,8 +851,9 @@ begin
   end;
 end;
 
-function TXICA_TwainItem.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
+function TXICA_TwainItem.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
 begin
+  Result:= inherited SetImageFormat(Value, ImgExt);
 end;
 
 function TXICA_TwainItem.GetDataType(out Current: TXICA_DataType): Boolean;

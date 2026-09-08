@@ -68,18 +68,21 @@ type
     StreamDestination: TFileStream;
     StreamAdapter: TStreamAdapter;
 
-    rDownloaded: Boolean;
-    rDownload_Count: Integer;
+    rDownload_Format: TXICA_ImageFormat;
     rDownload_Path,
     rDownload_Ext,
     rDownload_FileName: String;
 
-(*oldcode    //Get Paper Width, Height form the Device (in Inches)
-    function _GetPaperSize(out AWidth, AHeight: Single): Boolean; overload; virtual; abstract;
-    function _GetPaperSize(out AWidth, AHeight, ADefaultWidth, ADefaultHeight: Single): Boolean; overload; virtual; abstract;
-*)
+    rDownloaded: Boolean;
+    rDownload_Count: Integer;
+
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; virtual; abstract;
+
+    //Derived Classes (Library Implementaors) MUST Use rDownload*** variables to Download the file(s).
+    // MUST set the variables rDownloaded to True if the download is successful
+    // and rDownloaded_Count to the number of files downloaded.
+    function Download: Integer; overload; virtual; abstract;
 
   public
     Type_: TXICA_ItemTypes;
@@ -97,10 +100,10 @@ type
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
     // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
-    function Download(APath, AFileName, AExt: String): Integer; overload; virtual; abstract;
-    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer; overload; virtual;
-    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
-                      out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; overload; virtual;
+    // Set AExt to '' for automatic Extension
+    function Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String): Integer; overload; virtual;
+    function Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String;
+                      out DownloadedFiles: TStringArray; const UseRelativePath: Boolean=False): Integer; overload; virtual;
 
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
@@ -202,8 +205,10 @@ type
     //Get Available Image Formats
     function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; virtual; abstract;
 
-    //Set Current Image Format
-    function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; virtual; abstract;
+    //Set Current Image Format and return the Ext
+    //  In this base class, the image format is set and the default extension for that format is returned.
+    //  Classes implementing the library must ALWAYS call the inherited method and then set their own settings.
+    function SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean; virtual;
 
      //Get Current Image DataType
     function GetDataType(out Current: TXICA_DataType): Boolean; overload; virtual; abstract;
@@ -310,10 +315,10 @@ type
     //Download the Selected Item and return the number of files transfered.
     // if multiple pages is downloaded then the file names are
     // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
-    function Download(APath, AFileName, AExt: String): Integer; overload; virtual;
-    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer; overload; virtual;
-    function Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
-                      out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; overload; virtual;
+    // Set AExt to '' for automatic Extension
+    function Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String): Integer; overload; virtual;
+    function Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String;
+                      out DownloadedFiles: TStringArray; const UseRelativePath: Boolean=False): Integer; overload; virtual;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
     //  The system dialog works at Device level, so the selected item is ignored
@@ -425,7 +430,7 @@ type
     function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; virtual;
 
     //Set Current Image Format
-    function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; virtual;
+    function SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean; virtual;
 
      //Get Current Image DataType
     function GetDataType(out Current: TXICA_DataType): Boolean; overload; virtual;
@@ -780,15 +785,41 @@ begin
   if (rCapabilities <> nil) then rCapabilities.Free;
 end;
 
-function TXICA_Item.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
+function TXICA_Item.Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String): Integer;
+var
+   ImgExt: String;
+
 begin
   Result:= 0;
 
-  if SetImageFormat(AFormat) then Result:= Download(APath, AFileName, AExt);
+  if SetImageFormat(AFormat, ImgExt) then
+  begin
+    //If user  set to '' then Set AExt to the one returned by SetImageFormat
+    if (AExt = '') then AExt:= ImgExt;
+
+    //Remove any incorrect ExtensionSeparator at the beginning
+    if (AExt <> '') and (AExt[1] = ExtensionSeparator) then Delete(AExt, 1, 1);
+
+    //Check if APath ends with DirectorySeparator
+    if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
+    then rDownload_Path:= APath
+    else rDownload_Path:= APath+DirectorySeparator;
+
+    //Try to Create the Path if don't exists
+    if (rDownload_Path<>'') and not(ForceDirectories(rDownload_Path)) then exit;
+
+    rDownload_FileName:= AFileName;
+    rDownload_Ext:= AExt;
+    rDownload_Count:= 0;
+    rDownloaded:= False;
+
+    //Start Download calling the method implemented in the library
+    Result:= Download;
+  end;
 end;
 
-function TXICA_Item.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat;
-                             out DownloadedFiles: TStringArray; UseRelativePath: Boolean): Integer;
+function TXICA_Item.Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String;
+                             out DownloadedFiles: TStringArray; const UseRelativePath: Boolean): Integer;
 var
    i: Integer;
 
@@ -796,25 +827,28 @@ begin
   Result:= 0;
   DownloadedFiles:= nil;
 
-  if SetImageFormat(AFormat) then
-  begin
-    Result:= Download(APath, AFileName, AExt);
-    if (Result > 0 ) then
-    begin
-      SetLength(DownloadedFiles, Result);
+  try
+     Result:= Download(APath, AFileName, AFormat, AExt);
 
-      if UseRelativePath
-      then begin
-             DownloadedFiles[0]:= rDownload_FileName+rDownload_Ext;
-             for i:=1 to Result-1 do
-               DownloadedFiles[i]:= rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
-           end
-      else begin
-             DownloadedFiles[0]:= rDownload_Path+rDownload_FileName+rDownload_Ext;
-             for i:=1 to Result-1 do
-               DownloadedFiles[i]:= rDownload_Path+rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
-           end;
-    end;
+     if (Result > 0 ) then
+     begin
+       SetLength(DownloadedFiles, Result);
+
+       if UseRelativePath
+       then begin
+              DownloadedFiles[0]:= rDownload_FileName+rDownload_Ext;
+              for i:=1 to Result-1 do
+                 DownloadedFiles[i]:= rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
+            end
+       else begin
+              DownloadedFiles[0]:= rDownload_Path+rDownload_FileName+rDownload_Ext;
+              for i:=1 to Result-1 do
+                 DownloadedFiles[i]:= rDownload_Path+rDownload_FileName+'-'+IntToStr(i)+rDownload_Ext;
+            end;
+     end;
+
+  except
+    DownloadedFiles:= nil;
   end;
 end;
 
@@ -1188,6 +1222,13 @@ begin
   Result:= True;
 end;
 
+function TXICA_Item.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
+begin
+  rDownload_Format:= Value;
+  ImgExt:= XICA_ImageFormatExt[Value];
+  Result:= True;
+end;
+
 function TXICA_Item.GetCapabilities: TXICA_Capabilities;
 var
    pFlags: TXICA_PropertyFlags;
@@ -1417,23 +1458,16 @@ begin
   HasEnumerated:= EnumerateItems(PreserveSelected);
 end;
 
-function TXICA_Device.Download(APath, AFileName, AExt: String): Integer;
+function TXICA_Device.Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String): Integer;
 begin
-  if (Selected <> nil) then Result:= Selected.Download(APath, AFileName, AExt)
+  if (Selected <> nil) then Result:= Selected.Download(APath, AFileName, AFormat, AExt)
   else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.Download(APath, AFileName, AExt: String; AFormat: TXICA_ImageFormat): Integer;
+function TXICA_Device.Download(const APath, AFileName: String; const AFormat: TXICA_ImageFormat; var AExt: String;
+                               out DownloadedFiles: TStringArray; const UseRelativePath: Boolean): Integer;
 begin
-  if (Selected <> nil) then Result:= Selected.Download(APath, AFileName, AExt, AFormat)
-  else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
-end;
-
-function TXICA_Device.Download(APath, AFileName, AExt: String;
-                               AFormat: TXICA_ImageFormat; out DownloadedFiles: TStringArray;
-                               UseRelativePath: Boolean): Integer;
-begin
-  if (Selected <> nil) then Result:= Selected.Download(APath, AFileName, AExt, AFormat, DownloadedFiles, UseRelativePath)
+  if (Selected <> nil) then Result:= Selected.Download(APath, AFileName, AFormat, AExt, DownloadedFiles, UseRelativePath)
   else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
@@ -1659,9 +1693,9 @@ begin
   else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 
-function TXICA_Device.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
+function TXICA_Device.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
 begin
-  if (Selected <> nil) then Result:= Selected.SetImageFormat(Value)
+  if (Selected <> nil) then Result:= Selected.SetImageFormat(Value, ImgExt)
   else raise Exception.Create(Format(rsExcNoSelectedItem, [Name]));
 end;
 

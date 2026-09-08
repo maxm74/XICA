@@ -59,6 +59,8 @@ type
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
 
+    function Download: Integer; overload; override;
+
     //Get Current Property Value and it's type given the ID
     function GetProperty(const APropId: PROPID; out propType: TVarType; out APropValue): Boolean; overload;
 
@@ -88,11 +90,6 @@ type
                            out ppDestination: IStream): HRESULT; stdcall;
 
     destructor Destroy; override;
-
-    //Download the Item and return the number of files transfered.
-    // if multiple pages is downloaded then the file names are
-    // APath\AFileName-n.AExt where n is then Index (when 0 n is not present)
-    function Download(APath, AFileName, AExt: String): Integer; overload; override;
 
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
@@ -161,7 +158,7 @@ type
     function GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean; overload; override;
 
     //Set Current Image Format
-    function SetImageFormat(const Value: TXICA_ImageFormat): Boolean; override;
+    function SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean; override;
 
      //Get Current Image DataType
     function GetDataType(out Current: TXICA_DataType): Boolean; overload; override;
@@ -214,11 +211,11 @@ type
 
   TXICA_WIAManager = class(TXICA_DeviceManager)
   protected
-    pDevMgr: WIA_LH.IWiaDevMgr2;
+    pDevMgr: IWiaDevMgr2;
     lres: HResult;
 
     //Create Main WIA Interface
-    function CreateDevManager: IUnknown; virtual;
+    function CreateDevManager: IWiaDevMgr2; virtual;
 
     //Enumerate the avaliable devices
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; override;
@@ -235,6 +232,7 @@ type
 
 const
   WiaImageFormatGUID : array [TXICA_ImageFormat] of TGUID = (
+                                                             // WIA Image format
     '{b96b3ca9-0728-11d3-9d7b-0000f81ef32e}',
     '{bca48b55-f272-4371-b0f1-4a150d057bb4}',
     '{b96b3caa-0728-11d3-9d7b-0000f81ef32e}',
@@ -255,7 +253,29 @@ const
     '{43e14614-c80a-4850-baf3-4b152dc8da27}',
     '{6f120719-f1a8-4e07-9ade-9b64c63a3dcc}',
     '{41e8dd92-2f0a-43d4-8636-f1614ba11e46}',
-    '{bb8e7e67-283c-4235-9e59-0b9bf94ca687}'
+    '{bb8e7e67-283c-4235-9e59-0b9bf94ca687}',
+                                                          // WIA document format
+    '{573dd6a3-4834-432d-a9b5-e198dd9e890d}',
+    '{b9171457-dac8-4884-b393-15b471d5f07e}',
+    '{c99a4e62-99de-4a94-acca-71956ac2977d}',
+    '{fafd4d82-723f-421f-9318-30501ac44b59}',
+    '{9980bd5b-3463-43c7-bdca-3caa146f229f}',
+    '{700b4a0f-2011-411c-b430-d1e0b2e10b28}',
+    '{2c7b1240-c14d-4109-9755-04b89025153a}',
+    '{355bda24-5a9f-4494-80dc-be752cecbc8c}',
+
+                                                             // WIA video format
+    '{ecd757e4-d2ec-4f57-955d-bcf8a97c4e52}',
+    '{32f8ca14-087c-4908-b7c4-6757fe7e90ab}',
+
+                                                             // WIA audio format
+    '{f818e146-07af-40ff-ae55-be8f2c065dbe}',
+    '{0fbc71fb-43bf-49f2-9190-e6fecff37e54}',
+    '{66e2bf4f-b6fc-443f-94c8-2f33c8a65aaf}',
+    '{d61d6413-8bc2-438f-93ad-21bd484db6a1}',
+
+                                                              // WIA misc format
+    '{8d948ee9-d0aa-4a12-9d9a-9cc5de36199b}'
   );
 
   WiaItemCategoryGUID : array[TXICA_ItemCategory] of TGUID = (
@@ -428,7 +448,7 @@ var
 
 begin
   Result:= False;
-  Value:= xifUNDEFINED;
+  Value:= xif_UNDEFINED;
 
   for i:=Low(TXICA_ImageFormat) to High(TXICA_ImageFormat) do
     if IsEqualGUID(WiaImageFormatGUID[i], AGUID) then
@@ -514,7 +534,7 @@ begin
               //Some Scanner call GetNextStream even if there are no more pages
               //so we end up with an extra file with size 0, delete it
               DeleteFile(rDownload_Path+rDownload_FileName+
-                         '-'+IntToStr(rDownload_Count)+rDownload_Ext);
+                         '-'+IntToStr(rDownload_Count)+ExtensionSeparator+rDownload_Ext);
            except
            end;
 
@@ -544,12 +564,12 @@ begin
 
   //  Return a new stream for this item's data.
   if (rDownload_Count = 0)
-  then Result:= CreateDestinationStream(rDownload_Path+rDownload_FileName+rDownload_Ext, ppDestination)
+  then Result:= CreateDestinationStream(rDownload_Path+rDownload_FileName+ExtensionSeparator+rDownload_Ext, ppDestination)
   else Result:= CreateDestinationStream(rDownload_Path+rDownload_FileName+
-                                        '-'+IntToStr(rDownload_Count)+rDownload_Ext, ppDestination);
+                                        '-'+IntToStr(rDownload_Count)+ExtensionSeparator+rDownload_Ext, ppDestination);
 end;
 
-function TXICA_WIAItem.Download(APath, AFileName, AExt: String): Integer;
+function TXICA_WIAItem.Download: Integer;
 var
    pWiaTransfer: IWiaTransfer;
    myTickStart, curTick: UInt64;
@@ -616,19 +636,6 @@ begin
 
   if (pItem <> nil) then
   begin
-    //oldcode selItem:= rItemList[rSelectedItemIndex];
-
-    if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
-    then rDownload_Path:= APath
-    else rDownload_Path:= APath+DirectorySeparator;
-
-    if (rDownload_Path<>'') and not(ForceDirectories(rDownload_Path)) then exit;
-
-    rDownload_FileName:= AFileName;
-    rDownload_Ext:= AExt;
-    rDownload_Count:= 0;
-    rDownloaded:= False;
-
     (*if (selItem.ItemCategory = wicFEEDER)
     then begin
            if (rVersion = 2) and (wdhAdvanced_Duplex in ADocHandling) //or have SubItems?
@@ -1537,8 +1544,8 @@ begin
      end;
 
      //Default Values are not valid so we must take it in this way
-     Current:= xifUNDEFINED;
-     Default:= xifUNDEFINED;
+     Current:= xif_UNDEFINED;
+     Default:= xif_UNDEFINED;
      Result:= GetProperty(WIA_IPA_FORMAT, propType, gValue) and
               WIAImageFormat(gValue, Current);
      if not(Result) then exit;
@@ -1551,9 +1558,10 @@ begin
   end;
 end;
 
-function TXICA_WIAItem.SetImageFormat(const Value: TXICA_ImageFormat): Boolean;
+function TXICA_WIAItem.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
 begin
-  Result:= SetProperty(WIA_IPA_FORMAT, VT_CLSID, WiaImageFormatGUID[Value]);
+  Result:= SetProperty(WIA_IPA_FORMAT, VT_CLSID, WiaImageFormatGUID[Value]) and
+           inherited SetImageFormat(Value, ImgExt);
 end;
 
 function TXICA_WIAItem.GetDataType(out Current: TXICA_DataType): Boolean;
@@ -1887,7 +1895,7 @@ end;
 
 { TXICA_WIAManager }
 
-function TXICA_WIAManager.CreateDevManager: IUnknown;
+function TXICA_WIAManager.CreateDevManager: IWiaDevMgr2;
 begin
   lres:= CoCreateInstance(CLSID_WiaDevMgr2, nil, CLSCTX_LOCAL_SERVER, IID_IWiaDevMgr2, Result);
 end;
@@ -1908,7 +1916,7 @@ var
 begin
   Result:= False;
 
-  if (pDevMgr = nil) then pDevMgr:= WIA_LH.IWiaDevMgr2(CreateDevManager);
+  if (pDevMgr = nil) then pDevMgr:= IWiaDevMgr2(CreateDevManager);
   if (pDevMgr <> nil) then
   begin
     if EnumAll

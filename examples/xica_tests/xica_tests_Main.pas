@@ -12,8 +12,8 @@ uses
   ExtCtrls,
   MM_OpenArrayList,
   XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
-  //XICA_WIA,
-  XICA_Twain,
+  XICA_WIA,
+  //XICA_Twain,
   XICA_SelectForm, XICA_SettingsForm;
 
 type
@@ -276,14 +276,20 @@ end;
 procedure TXICATests.btDownloadClick(Sender: TObject);
 var
    c: Integer;
+   theExt: String = '';
+   curF, defF: TXICA_ImageFormat;
+   listF: TXICA_ImageFormats;
 
 begin
    if (selItem <> nil) then
-   begin
+   try
      Memo1.Lines.Add('Downloading From  '+curNameM+'.'+curNameD+'.'+curNameI);
+     selItem.GetImageFormat(curF, defF, listF);
      selItem.SetPages(0);
-     c:= selItem.Download('', 'xica_tests', '.bmp', xifBMP);
+     c:= selItem.Download('', 'xica_tests', xif_BMP, theExt);
      Memo1.Lines.Add('Downloaded '+IntToStr(c)+' Files');
+
+   finally
    end
    else Memo1.Lines.Add('ERROR: Downloading - NO Selected Item');
 

@@ -27,6 +27,7 @@ type
   PtrUInt = Longword;
 {$endif}
 const
+  ExtensionSeparator = '.';
   AllowDirectorySeparators : set of AnsiChar = ['\','/'];
   {$ifdef MSWINDOWS}
     DirectorySeparator = '\';

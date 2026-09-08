@@ -150,27 +150,50 @@ type
   TXICA_AlignHorizontal = (xaHLeft, xaHCenter, xaHRight);
 
   TXICA_ImageFormat = (
-    xifUNDEFINED,
-    xifRAWRGB,
-    xifMEMORYBMP,
-    xifBMP,
-    xifEMF,
-    xifWMF,
-    xifJPEG,
-    xifPNG,
-    xifGIF,
-    xifTIFF,
-    xifEXIF,
-    xifPHOTOCD,
-    xifFLASHPIX,
-    xifICO,
-    xifCIFF,
-    xifPICT,
-    xifJPEG2K,
-    xifJPEG2KX,
-    xifRAW,
-    xifJBIG,
-    xifJBIG2
+                                                                  //Image format
+    xif_UNDEFINED,
+    xif_RAWRGB,
+    xif_MEMORYBMP,
+    xif_BMP,
+    xif_EMF,
+    xif_WMF,
+    xif_JPEG,
+    xif_PNG,
+    xif_GIF,
+    xif_TIFF,
+    xif_EXIF,
+    xif_PHOTOCD,
+    xif_FLASHPIX,
+    xif_ICO,
+    xif_CIFF,
+    xif_PICT,
+    xif_JPEG2K,
+    xif_JPEG2KX,
+    xif_RAW,
+    xif_JBIG,
+    xif_JBIG2,
+                                                               //Document format
+    xif_RTF,
+    xif_XML,
+    xif_HTML,
+    xif_TXT,
+    xif_PDFA,
+    xif_XPS,
+    xif_OXPS,
+    xif_CSV,
+
+                                                                  //Video format
+    xif_MPG,
+    xif_AVI,
+
+                                                                  //Audio format
+    xif_WAV,
+    xif_MP3,
+    xif_AIFF,
+    xif_WMA,
+
+                                                                   //Misc format
+    xif_ASF
   );
   TXICA_ImageFormats = set of TXICA_ImageFormat;
 
@@ -345,7 +368,55 @@ type
   TXICA_CapabilitiesClass = class of TXICA_Capabilities;
 
 const
-  XICA_ImageFormatDescr : array [TXICA_ImageFormat] of String = (
+  XICA_ImageFormatExt:array [TXICA_ImageFormat] of String = (
+                                                                  //Image format
+    '',
+    'raw',
+    'bmp', //Really this is in Memory without a header
+    'bmp',
+    'emf',
+    'wmf',
+    'jpg',
+    'png',
+    'gif',
+    'tif',
+    'jpg',
+    'pcd',
+    'fpx',
+    'ico',
+    'crw',
+    'pct',
+    'j2k',   //or jp2 ?
+    'jpx',   //or jpf ?
+    'raw',
+    'jbig',
+    'jbig2',
+
+                                                               //Document format
+    'rtf',
+    'xml',
+    'html',
+    'txt',
+    'pdf',
+    'xps',
+    'oxps',
+    'csv',
+                                                                  //Video format
+    'mpg',
+    'avi',
+                                                                  //Audio format
+
+    'wav',
+    'mp3',
+    'aif',
+    'wma',
+
+                                                                   //Misc format
+    'asf'
+  );
+
+  XICA_ImageFormatDescr: array [TXICA_ImageFormat] of String = (
+                                                                  //Image format
     'Undefined',
     'Raw RGB format',
     'Windows bitmap without a header',
@@ -366,7 +437,29 @@ const
     'JPEG 2000X compressed format',
     'Raw image file format',
     'Joint Bi-level Image experts Group format',
-    'Joint Bi-level Image experts Group format (ver 2)'
+    'Joint Bi-level Image experts Group format (ver 2)',
+
+                                                               //Document format
+    'Rich Text Format',
+    'Extensible Markup Language',
+    'HyperText Markup Language',
+    'Text File',
+    'Portable Document Format',
+    'XML Paper Specification',
+    'Open XML Paper Specification',
+    'Comma-Separated Values',
+                                                                  //Video format
+    'Moving Picture Experts Group',
+    'Audio Video Interleave',
+                                                                  //Audio format
+
+    'Waveform Audio',
+    'MPEG Audio Layer III',
+    'Audio Interchange File Format',
+    'Windows Media Audio',
+
+                                                                   //Misc format
+    'Advanced Systems Format (Streaming Audio/Video)'
   );
 
   XICA_DataTypeDescr: array [TXICA_DataType] of String = (
