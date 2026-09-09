@@ -255,6 +255,8 @@ begin
       edItem.Value:= selDevice.SelectedIndex;
     end;
   end;
+
+  panDownload.Enabled:= (selManager <> nil) and (selDevice <> nil) and (selItem <> nil);
 end;
 
 procedure TXICATests.btUI_SelectClick(Sender: TObject);

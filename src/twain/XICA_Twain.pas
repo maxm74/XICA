@@ -53,7 +53,6 @@ type
   public
     destructor Destroy; override;
 
-
     //Get Available Values for XResolution,
     //  if Result contain the Flag prop_RANGE then use propRANGE_XXX Indexes to get MIN/MAX/STEP Values
     function GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags; override;
@@ -148,6 +147,8 @@ type
     rEnabled: Boolean;
     rIdentity: TW_IDENTITY;
 
+    rDownloadItem: TXICA_TwainItem;
+
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
@@ -194,6 +195,7 @@ type
     procedure EnableDS(const UserInterface: TW_USERINTERFACE); overload; virtual;
     procedure DisableDS; virtual;
 
+    function SetFileTransferInfo(const AFileTransferInfo: TW_SETUPFILEXFER): Boolean; virtual;
     procedure TransferImages; virtual;
 
   public
@@ -277,7 +279,6 @@ const
 
   VirtualWinClassName: array[0..17] of WideChar =
   ('X', 'I', 'C', 'A', '_', 'T', 'w', 'a', 'i', 'n', 'M', 'a', 'n', 'a', 'g', 'e', 'r', #0);
-
 
 type
   //Kinds of directories to be obtained with GetCustomDirectory
@@ -375,6 +376,22 @@ begin
   else GlobalUnlock(_hMemory);
 end;
 
+
+//Puts a string inside a TW_STR255
+{$IFDEF UNICODE}
+function StrToStr255(Value: RawByteString): TW_STR255;
+{$ELSE}
+function StrToStr255(Value: String): TW_STR255;
+{$ENDIF}
+begin
+  {Clean result}
+  Fillchar({%H-}Result, sizeof(TW_STR255), #0);
+  {If value fits inside the TW_STR255, copy memory}
+  if Length(Value) <= sizeof(TW_STR255) then
+    CopyMemory(@Result[0], @Value[1], Length(Value))
+  else CopyMemory(@Result[0], @Value[1], sizeof(TW_STR255));
+end;
+
 //Convert from Single to Fix32
 function FloatToFix32 (floater: Single): TW_FIX32;
 //Chad Berchek new code:
@@ -466,7 +483,22 @@ begin
   end;
 end;
 
-
+function TW_ImageFormat(const AFormat: TXICA_ImageFormat): TW_UINT16;
+begin
+  Case AFormat of
+  xif_BMP: Result:= TWFF_BMP;
+  xif_JPEG: Result:= TWFF_JFIF;
+  xif_PNG: Result:= TWFF_PNG;
+  xif_TIFF: Result:= TWFF_TIFF;
+  xif_EXIF: Result:= TWFF_EXIF;
+  xif_FLASHPIX: Result:= TWFF_FPX;
+  xif_PICT: Result:= TWFF_PICT;
+  xif_JPEG2K: Result:= TWFF_JP2;
+  xif_JPEG2KX: Result:= TWFF_JPX;
+  xif_PDFA: Result:= TWFF_PDFA;
+  else Result:= TWFF_BMP;  //Not Supported by Twain, Select BMP
+  end;
+end;
 
 { TXICA_TwainItem }
 
@@ -476,24 +508,55 @@ begin
 end;
 
 function TXICA_TwainItem.Download: Integer;
+var
+  FileTransferInfo: TW_SETUPFILEXFER;
+  UserInterface: TW_USERINTERFACE;
+
 begin
   Result:= 0;
 
-      { #todo 2 -oMaxM : Test if all Scanner is Synch }
-      (*
+  with TXICA_TwainDevice(rOwner) do
+  if (rDownloadItem = nil) then
+  try
+     rDownloadItem:= Self;
 
-      myTickStart:= GetTickCount64; curTick:= myTickStart;
-      repeat
-        CheckSynchronize(100);
+     //Prepare structure
+     FileTransferInfo.FileName := StrToStr255({$IFDEF UNICODE}RawByteString{$ENDIF}(rDownload_Path+rDownload_FileName+rDownload_Ext));
+     FileTransferInfo.Format := TW_ImageFormat(rDownload_Format);
 
-        curTick:= GetTickCount64;
+     //Set FileTransferInfo in DS
+     if SetFileTransferInfo(FileTransferInfo) then
+     begin
+       FillChar(UserInterface, SizeOf(UserInterface), 0);
+       //UserInterface.hParent:= Application.ActiveFormHandle;
 
-      until (rDownloaded) or ((curTick-myTickStart) > 27666);
-      *)
+       EnableDS(UserInterface);  //Start Download
 
-      if (lres = S_OK) and rDownloaded
-      then Result:= rDownload_Count
-      else Result:= 0;
+       //Everything is asynchronous via messages to the VirtualWindow
+       repeat
+         //and we have to wait here until it finishes
+         CheckSynchronize(10);
+       until rDownload_Done;
+
+       //If not Cancelled return the number of files really Downloaded
+       if not(rDownload_Cancelled) then Inc(rDownload_Count);
+
+       rDownloaded:= (rDownload_Count > 0);
+
+       if rDownloaded
+       then begin
+              //MaxM: We have changed the first filename adding -0 otherwise it will be overwritten
+              //      See note on TransferImages method
+              RenameFile(rDownload_Path+rDownload_FileName+'-0'+rDownload_Ext,
+                         rDownload_Path+rDownload_FileName+rDownload_Ext);
+              Result:= rDownload_Count;
+            end
+       else Result:= 0;
+     end;
+
+  finally
+    rDownloadItem:= nil;
+  end;
 end;
 
 function TXICA_TwainItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
@@ -1610,7 +1673,7 @@ begin
   //Call DSM_Entry procedure to handle message
   Result:= (DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_EVENT, MSG_PROCESSEVENT, @twEvent) = TWRC_DSEVENT);
 
-  //{If it is a message from the source, process
+  //If it is a message from the source, process
   if Result then
     case twEvent.TWMessage of
       //No message from the source
@@ -1733,9 +1796,86 @@ begin
   end;
 end;
 
-procedure TXICA_TwainDevice.TransferImages;
+function TXICA_TwainDevice.SetFileTransferInfo(const AFileTransferInfo: TW_SETUPFILEXFER): Boolean;
 begin
-  //TO-DO Copy from DelphiTwain
+  Result:= False;
+
+  if rOpened then
+  begin
+    lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_SETUPFILEXFER, MSG_SET, @AFileTransferInfo);
+    Result:= (lRes = TWRC_SUCCESS);
+  end;
+end;
+
+procedure TXICA_TwainDevice.TransferImages;
+var
+  {Return code from Twain method}
+  rc : TW_UINT16;
+  {Handle to the native Device independent Image (DIB)}
+  hNative: THandle;
+  {Pending transfers structure}
+  PendingXfers: TW_PENDINGXFERS;
+  {File transfer info}
+  Info: TW_SETUPFILEXFER;
+  {Image handle and pointer}
+  ImageHandle: HBitmap;
+  PixelType  : TW_INT16;
+
+begin
+  if (rDownloadItem <> nil) then
+  with rDownloadItem do
+  begin
+  rDownload_Cancelled:= False;
+  rDownload_Done:= False;
+
+  rDownload_Count:= -1;
+  repeat
+    Inc(rDownload_Count);
+
+    DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_SETUPFILEXFER, MSG_GET, @Info);
+
+    //MaxM: Apparently i can't set the filename here, so if DownloadCount is greater than zero
+    //      we are forced to rename the file correctly otherwise it will be overwritten
+    if (rDownload_Count = 1)
+    then RenameFile(Info.FileName, rDownload_Path+rDownload_FileName+'-0'+rDownload_Ext);
+
+    //Call method to make source acquire and create file
+    rc:= DSM_Entry(@AppIdentity, @rIdentity, DG_IMAGE, DAT_IMAGEFILEXFER, MSG_GET, nil);
+
+    if (rDownload_Count > 0)
+    then RenameFile(Info.FileName, rDownload_Path+rDownload_FileName+
+                    '-'+IntToStr(rDownload_Count)+rDownload_Ext);
+
+    //Set correct Filename for Events
+    Info.FileName:= StrToStr255(rDownload_Path+rDownload_FileName+
+                                '-'+IntToStr(rDownload_Count)+rDownload_Ext);
+
+    //Process Return Code of DSM_Entry call to transfer image
+    case rc of
+      //TWRC_XFERDONE: ReadFile(Info.FileName, Info.Format, rDownload_Cancelled); //Transfer sucessfully done
+
+      TWRC_CANCEL: begin //User cancelled the transfers
+        rDownload_Done:= True; //Set Sequence Done
+        rDownload_Cancelled:= True;
+      end
+    end;
+
+    //Check if there are pending transfers
+    if not(rDownload_Done)
+    then rDownload_Done:= (DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL,
+                                     DAT_PENDINGXFERS, MSG_ENDXFER, @PendingXfers) <> TWRC_SUCCESS) or
+                          (PendingXfers.Count = 0);
+
+    {If user has cancelled}
+    if not(rDownload_Done) and rDownload_Cancelled
+    then rDownload_Done:= (DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL,
+                                     DAT_PENDINGXFERS, MSG_RESET, @PendingXfers) = TWRC_SUCCESS);
+
+  until rDownload_Done;
+
+  //Disable Data Source
+  DisableDS;
+  end;
 end;
 
 constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
@@ -1745,6 +1885,7 @@ begin
   FillChar(rIdentity, sizeof(rIdentity), 0);
   rOpened:= False;
   rEnabled:= False;
+  rDownloadItem:= nil;
 end;
 
 constructor TXICA_TwainDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceIdentity: TW_IDENTITY);

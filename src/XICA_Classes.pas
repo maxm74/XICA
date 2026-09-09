@@ -73,7 +73,9 @@ type
     rDownload_Ext,
     rDownload_FileName: String;
 
-    rDownloaded: Boolean;
+    rDownloaded,                   //Some files have been downloaded
+    rDownload_Done,                //The sequence has ended (with or without files)
+    rDownload_Cancelled: Boolean;  //Cancelled by User
     rDownload_Count: Integer;
 
     //Get Max Paper Width, Height form the Device (in Inches)
@@ -461,7 +463,7 @@ type
     function SettingsDeviceDialog(const AInitItemValues: TInitialItemValues;
                                   const AOnInitDefaultValues: TInitDefaultValuesEvent=nil): Boolean; virtual; { #todo -oMaxM : Possibly Filters for which Items Kinds to Show? How manage AParams without Indexes? }
 
-    property Selected: TXICA_Item read GetSelected;
+    //oldcode property Selected: TXICA_Item read GetSelected;
     property Owner: TXICA_DeviceManager read rOwner;
     property Index: Integer read rIndex;
 
@@ -767,6 +769,8 @@ begin
   rDownload_FileName:= '';
   rDownload_Count:= 0;
   rDownloaded:= False;
+  rDownload_Cancelled:= False;
+  rDownload_Done:= False;
 
   rPaperLandscape:= False;
   rXRes:= -1; rYRes:= -1;
@@ -1787,7 +1791,7 @@ end;
 
 function TXICA_DeviceManager.EnumerateDevices(PreserveSelected: Boolean): Boolean;
 var
-   lastSelected: ^TXICA_Device;
+   lastSelected: TXICA_Device;
 
 begin
   Result :=False;
@@ -1802,10 +1806,7 @@ begin
 
   if Enabled then
   try
-     //open arraylist returns nil if not selected and the class address if selected, we can't do nil^
-     if (lastSelected = nil)
-     then Result:= _EnumerateDevices(PreserveSelected, nil)
-     else Result:= _EnumerateDevices(PreserveSelected, lastSelected^);
+     Result:= _EnumerateDevices(PreserveSelected, lastSelected);
 
   except
     Clear(PreserveSelected);

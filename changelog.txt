@@ -1,5 +1,9 @@
 XICA CHANGE LOG
 ======================
+2026/09/09 OpenArrayList: Changed GetSelected to return T;
+           Classes: Added rDownload_Cancelled/Done;
+           Twain Manager: First Write of Download Sequence;
+
 2026/09/08 Classes: Changed Download sequence and parameters;
            Types: Added some more file formats;
            WIA Manager: Changed CreateDevManager result type (strange compiler error);
