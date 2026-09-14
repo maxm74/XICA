@@ -290,7 +290,8 @@ type
     rOnBeforeDeviceTransfer: TXICA_OnDeviceTransfer;
 
     function FreeElement(var aData: TXICA_Item): Boolean; override;
-    function GetSelected: TXICA_Item; overload; virtual;
+    function GetSelected: TXICA_Item; override;
+    function GetSelectedIndex: Integer; override;
 
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; virtual; abstract;
@@ -507,6 +508,8 @@ type
     rOnBeforeDeviceTransfer: TXICA_OnDeviceManagerTransfer;
 
     function FreeElement(var aData: TXICA_Device): Boolean; override;
+    function GetSelected: TXICA_Device; override;
+    function GetSelectedIndex: Integer; override;
 
     //Enumerate the avaliable devices
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; virtual; abstract;
@@ -1385,9 +1388,16 @@ begin
   if not(Enumerating)
   then if not(HasEnumerated) then HasEnumerated:= EnumerateItems(False); //Enumerate Items if needed
 
-  if (rSelectedIndex >= 0) and (rSelectedIndex < Length(rList))
-  then Result:= rList[rSelectedIndex].Data
-  else Result:= nil;
+  Result:= inherited GetSelected;
+end;
+
+function TXICA_Device.GetSelectedIndex: Integer;
+begin
+  //Avoid Infinite loop if we use SelectedIndex in _EnumerateItems
+  if not(Enumerating)
+  then if not(HasEnumerated) then HasEnumerated:= EnumerateItems(False); //Enumerate Items if needed
+
+  Result:= inherited GetSelectedIndex;
 end;
 
 function TXICA_Device.EnumerateItems(PreserveSelected: Boolean): Boolean;
@@ -1789,6 +1799,24 @@ begin
   end;
 end;
 
+function TXICA_DeviceManager.GetSelected: TXICA_Device;
+begin
+  //Avoid Infinite loop if we use Selected in _EnumerateDevices
+  if not(Enumerating)
+  then if not(HasEnumerated) then HasEnumerated:= EnumerateDevices(False); //Enumerate devices if needed
+
+  Result:=inherited GetSelected;
+end;
+
+function TXICA_DeviceManager.GetSelectedIndex: Integer;
+begin
+  //Avoid Infinite loop if we use SelectedIndex in _EnumerateDevices
+  if not(Enumerating)
+  then if not(HasEnumerated) then HasEnumerated:= EnumerateDevices(False); //Enumerate devices if needed
+
+  Result:=inherited GetSelectedIndex;
+end;
+
 function TXICA_DeviceManager.EnumerateDevices(PreserveSelected: Boolean): Boolean;
 var
    lastSelected: TXICA_Device;
@@ -1843,12 +1871,8 @@ end;
 function TXICA_DeviceManager.GetCount: DWord;
 begin
   //Avoid Infinite loop if we use Count in _EnumerateDevices
-  if not(Enumerating) then
-  begin
-    //Enumerate devices if needed
-    if not(HasEnumerated)
-    then HasEnumerated:= EnumerateDevices(False);
-  end;
+  if not(Enumerating)
+  then if not(HasEnumerated) then HasEnumerated:= EnumerateDevices(False); //Enumerate devices if needed
 
   Result:=inherited GetCount;
 end;
