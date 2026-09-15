@@ -13,7 +13,7 @@ uses
   MM_OpenArrayList,
   XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
   XICA_WIA,
-  //XICA_Twain,
+  XICA_Twain,
   XICA_SelectForm, XICA_SettingsForm;
 
 type

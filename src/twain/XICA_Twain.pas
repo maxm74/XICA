@@ -188,14 +188,14 @@ type
 
     function ProcessMessage(const Msg: TMsg): Boolean; virtual;
 
-    procedure OpenDS; virtual;
+    function OpenDS: Boolean; virtual;
     procedure CloseDS; virtual;
 
-    procedure EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle=0); overload; virtual;
-    procedure EnableDS(const UserInterface: TW_USERINTERFACE); overload; virtual;
+    function EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle=0): Boolean; overload; virtual;
+    function EnableDS(UserInterface: TW_USERINTERFACE): Boolean; overload; virtual;
     procedure DisableDS; virtual;
 
-    function SetFileTransferInfo(const AFileTransferInfo: TW_SETUPFILEXFER): Boolean; virtual;
+    function SetFileTransferInfo(AFileTransferInfo: TW_SETUPFILEXFER): Boolean; virtual;
     procedure TransferImages; virtual;
 
   public
@@ -511,32 +511,43 @@ function TXICA_TwainItem.Download: Integer;
 var
   FileTransferInfo: TW_SETUPFILEXFER;
   UserInterface: TW_USERINTERFACE;
+  AMessage: TMsg;
 
 begin
   Result:= 0;
 
   with TXICA_TwainDevice(rOwner) do
-  if (rDownloadItem = nil) then
+  if (rDownloadItem = nil) and OpenDS then
   try
      rDownloadItem:= Self;
 
      //Prepare structure
-     FileTransferInfo.FileName := StrToStr255({$IFDEF UNICODE}RawByteString{$ENDIF}(rDownload_Path+rDownload_FileName+rDownload_Ext));
-     FileTransferInfo.Format := TW_ImageFormat(rDownload_Format);
+     FileTransferInfo.FileName:= StrToStr255({$IFDEF UNICODE}RawByteString{$ENDIF}(rDownload_Path+rDownload_FileName+ExtensionSeparator+rDownload_Ext));
+     FileTransferInfo.Format:= TW_ImageFormat(rDownload_Format);
 
      //Set FileTransferInfo in DS
      if SetFileTransferInfo(FileTransferInfo) then
      begin
        FillChar(UserInterface, SizeOf(UserInterface), 0);
-       //UserInterface.hParent:= Application.ActiveFormHandle;
+       UserInterface.hParent:= GetDesktopWindow;
 
-       EnableDS(UserInterface);  //Start Download
+       EnableDS(False, True); //UserInterface);  //Start Download
 
        //Everything is asynchronous via messages to the VirtualWindow
-       repeat
+       while not(rDownload_Done) and PeekMessage(AMessage, HWnd(nil), 0, 0, PM_REMOVE) do
+       begin
+         TranslateMessage(AMessage);
+         DispatchMessageW(AMessage);
+
+         if (AMessage.message = WM_QUIT) then
+         begin
+           PostQuitMessage(AMessage.wParam);
+           rDownload_Done :=True;
+         end;
+
          //and we have to wait here until it finishes
-         CheckSynchronize(10);
-       until rDownload_Done;
+         CheckSynchronize;
+      end;
 
        //If not Cancelled return the number of files really Downloaded
        if not(rDownload_Cancelled) then Inc(rDownload_Count);
@@ -547,8 +558,8 @@ begin
        then begin
               //MaxM: We have changed the first filename adding -0 otherwise it will be overwritten
               //      See note on TransferImages method
-              RenameFile(rDownload_Path+rDownload_FileName+'-0'+rDownload_Ext,
-                         rDownload_Path+rDownload_FileName+rDownload_Ext);
+              RenameFile(rDownload_Path+rDownload_FileName+'-0'+ExtensionSeparator+rDownload_Ext,
+                         rDownload_Path+rDownload_FileName+ExtensionSeparator+rDownload_Ext);
               Result:= rDownload_Count;
             end
        else Result:= 0;
@@ -1700,21 +1711,26 @@ begin
     end;
 end;
 
-procedure TXICA_TwainDevice.OpenDS;
+function TXICA_TwainDevice.OpenDS: Boolean;
 begin
-  if (TXICA_TwainManager(rOwner).m_DSMState < 3) then TXICA_TwainManager(rOwner).connectDSM;
+  try
+     if (TXICA_TwainManager(rOwner).m_DSMState < 3) then TXICA_TwainManager(rOwner).connectDSM;
 
-  //Open only if it is not already opened
-  if not(rOpened) then
-  begin
-    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_OPENDS, @rIdentity);
+     //Open only if it is not already opened
+     if not(rOpened) then
+     begin
+       lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_IDENTITY, MSG_OPENDS, @rIdentity);
 
-    if (lRes = TWRC_SUCCESS) then
-    begin
-      //Increase the loaded sources count variable
-      inc(TXICA_TwainManager(rOwner).rOpenedSources);
-      rOpened:= True;
-    end;
+       if (lRes = TWRC_SUCCESS) then
+       begin
+         //Increase the loaded sources count variable
+         inc(TXICA_TwainManager(rOwner).rOpenedSources);
+         rOpened:= True;
+       end;
+     end;
+
+  finally
+     Result:= rOpened;
   end;
 end;
 
@@ -1737,41 +1753,58 @@ begin
   end;
 end;
 
-procedure TXICA_TwainDevice.EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle);
+function TXICA_TwainDevice.EnableDS(const ShowUI, Modal: Boolean; const ParentWindow: THandle): Boolean;
 var
   twUserInterface: TW_USERINTERFACE;
 
 begin
-  {Builds UserInterface structure}
-  twUserInterface.ShowUI:= ShowUI;
-  twUserInterface.ModalUI:= Modal;
+  try
+     //Builds UserInterface structure
+     twUserInterface.ShowUI:= ShowUI;
+     twUserInterface.ModalUI:= Modal;
 
-  if (ParentWindow=0)
-  then twUserInterface.hParent:= TXICA_TwainManager(rOwner).VirtualWindow    //Owner.CustomGetParentWindow
-  else twUserInterface.hParent:= ParentWindow;
+     if (ParentWindow = 0)
+     then begin
+            if IsConsole then
+              twUserInterface.hParent:= 0
+            else (*if not IsLibrary then
+              twUserInterface.hParent:= {$IF DEFINED(FPC) OR DEFINED(DELPHI_7_DOWN)}GetActiveWindow{$ELSE}Application.ActiveFormHandle{$IFEND}
+            else*)
+              twUserInterface.hParent:= GetActiveWindow;//GetForegroundWindow GetDesktopWindow
+          end
+     else twUserInterface.hParent:= ParentWindow;
 
-  EnableDS(twUserInterface);
+     EnableDS(twUserInterface);
+
+  finally
+     Result:= rEnabled;
+  end;
 end;
 
-procedure TXICA_TwainDevice.EnableDS(const UserInterface: TW_USERINTERFACE);
+function TXICA_TwainDevice.EnableDS(UserInterface: TW_USERINTERFACE): Boolean;
 begin
-  //Enable only if it is not already Enabled
-  if not(rEnabled) then
-  begin
-    //If not opened Open it First
-    if not(rOpened) then OpenDS;
+  try
+     //Enable only if it is not already Enabled
+     if not(rEnabled) then
+     begin
+       //If not opened Open it First
+       if not(rOpened) then OpenDS;
 
-    if rOpened then
-    begin
-      lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_USERINTERFACE, MSG_ENABLEDS, @rIdentity);
+       if rOpened then
+       begin
+         lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_USERINTERFACE, MSG_ENABLEDS, @UserInterface);
 
-      if (lRes in [TWRC_SUCCESS, TWRC_CHECKSTATUS]) then
-      begin
-        //Increase the loaded sources count variable
-        inc(TXICA_TwainManager(rOwner).rEnabledSources);
-        rEnabled:= True;
-      end;
-    end;
+         if (lRes in [TWRC_SUCCESS, TWRC_CHECKSTATUS]) then
+         begin
+           //Increase the loaded sources count variable
+           inc(TXICA_TwainManager(rOwner).rEnabledSources);
+           rEnabled:= True;
+         end;
+       end;
+     end;
+
+  finally
+     Result:= rEnabled;
   end;
 end;
 
@@ -1785,7 +1818,7 @@ begin
 
   if rEnabled then
   begin
-    lRes:= DSM_Entry(@AppIdentity, nil, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface);
+    lRes:= DSM_Entry(@AppIdentity, @rIdentity, DG_CONTROL, DAT_USERINTERFACE, MSG_DISABLEDS, @twUserInterface);
 
     if (lRes = TWRC_SUCCESS) then
     begin
@@ -1796,7 +1829,7 @@ begin
   end;
 end;
 
-function TXICA_TwainDevice.SetFileTransferInfo(const AFileTransferInfo: TW_SETUPFILEXFER): Boolean;
+function TXICA_TwainDevice.SetFileTransferInfo(AFileTransferInfo: TW_SETUPFILEXFER): Boolean;
 begin
   Result:= False;
 
@@ -1837,18 +1870,18 @@ begin
     //MaxM: Apparently i can't set the filename here, so if DownloadCount is greater than zero
     //      we are forced to rename the file correctly otherwise it will be overwritten
     if (rDownload_Count = 1)
-    then RenameFile(Info.FileName, rDownload_Path+rDownload_FileName+'-0'+rDownload_Ext);
+    then RenameFile(Info.FileName, rDownload_Path+rDownload_FileName+'-0'+ExtensionSeparator+rDownload_Ext);
 
     //Call method to make source acquire and create file
     rc:= DSM_Entry(@AppIdentity, @rIdentity, DG_IMAGE, DAT_IMAGEFILEXFER, MSG_GET, nil);
 
     if (rDownload_Count > 0)
     then RenameFile(Info.FileName, rDownload_Path+rDownload_FileName+
-                    '-'+IntToStr(rDownload_Count)+rDownload_Ext);
+                    '-'+IntToStr(rDownload_Count)+ExtensionSeparator+rDownload_Ext);
 
     //Set correct Filename for Events
     Info.FileName:= StrToStr255(rDownload_Path+rDownload_FileName+
-                                '-'+IntToStr(rDownload_Count)+rDownload_Ext);
+                                '-'+IntToStr(rDownload_Count)+ExtensionSeparator+rDownload_Ext);
 
     //Process Return Code of DSM_Entry call to transfer image
     case rc of
@@ -2062,22 +2095,25 @@ begin
     begin
       if (Twain_Manager <> nil) and (Twain_Manager.m_DSMState > 2) then
       begin
-        //Convert parameters to a TMsg
-        Msg := MakeMsg(Handle, uMsg, wParam, lParam);
-
-        //Tell about this message
         if (Twain_Manager.OpenedSources > 0) then
-        for i:=0 to Twain_Manager.Count-1 do
-          if Twain_Manager.Get(i, TXICA_Device(curDevice)) then
-          begin
-            //Process this message only if Device is Opened
-            if (curDevice.Opened) and (curDevice.ProcessMessage(Msg)) then
-            begin
-              //Case this was a message from the source, there is no need for the default procedure to process
-              Result:= 0;
-              Exit;
-            end;
-          end;
+        begin
+          //Convert parameters to a TMsg
+          Msg := MakeMsg(Handle, uMsg, wParam, lParam);
+
+          //Tell about this message
+          for i:=0 to Twain_Manager.Count-1 do
+             if Twain_Manager.Get(i, TXICA_Device(curDevice)) then
+             begin
+               //Process this message only if Device is Enabled
+               if (curDevice.Enabled(*Opened*)) and (curDevice.ProcessMessage(Msg)) then
+               begin
+                 //Case this was a message from the source, there is no need for the default procedure to process
+                 Result:= 0;
+                 Exit;
+               end;
+             end;
+
+        end;
       end;
     end;
   end;

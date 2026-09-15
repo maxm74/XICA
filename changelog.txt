@@ -1,5 +1,7 @@
 XICA CHANGE LOG
 ======================
+2026/09/15 Twain Manager: Updated Download Sequence added Messages Loop;
+
 2026/09/14 Classes: EnumerateXX when GetSelected or GetSelectedIndex
 
 2026/09/09 OpenArrayList: Changed GetSelected to return T;

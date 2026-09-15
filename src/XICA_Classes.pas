@@ -819,6 +819,8 @@ begin
     rDownload_Ext:= AExt;
     rDownload_Count:= 0;
     rDownloaded:= False;
+    rDownload_Done:= False;
+    rDownload_Cancelled:= False;
 
     //Start Download calling the method implemented in the library
     Result:= Download;
