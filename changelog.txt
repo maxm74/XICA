@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/09/22 Classes: Added autocreate of XICA_Manager; Every Class have it's lRes status;
+           Sane Manager: First Version EnumDevices;
+
 2026/09/15 Twain Manager: Updated Download Sequence added Messages Loop;
 
 2026/09/14 Classes: EnumerateXX when GetSelected or GetSelectedIndex

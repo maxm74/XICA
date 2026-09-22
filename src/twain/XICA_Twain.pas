@@ -143,6 +143,7 @@ type
 
   TXICA_TwainDevice = class(TXICA_Device)
   protected
+    lres: HResult;
     rOpened,
     rEnabled: Boolean;
     rIdentity: TW_IDENTITY;

@@ -12,3 +12,4 @@ msgstr "Dimensione Personalizzata"
 #: xica_papersizes.rsfullsize
 msgid "Full size"
 msgstr "Dimensione Intera"
+

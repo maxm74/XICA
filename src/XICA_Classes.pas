@@ -281,7 +281,7 @@ type
     rSubType: Word;
     rVersion,
     rVersionSub: Integer;
-    lres: HResult;
+//oldcode    lres: HResult;
 
     Enumerating,
     HasEnumerated: Boolean;
@@ -499,7 +499,7 @@ type
     rVersion,
     rVersionSub: Integer;
     rEnumAll: Boolean;
-    lres: HResult;
+//oldcode    lres: HResult;
 
     Enumerating,
     HasEnumerated: Boolean;

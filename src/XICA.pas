@@ -142,5 +142,11 @@ begin
   end;
 end;
 
+initialization
+  XICA_Manager:= TXICA_Manager.Create;
+
+finalization
+  if (XICA_Manager <> nil) then begin XICA_Manager.Free; XICA_Manager:= nil; end;
+
 end.
 

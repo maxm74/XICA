@@ -1,12 +1,12 @@
 ﻿(*******************************************************************************
 *                XICA (Cross-platform Image Capture Architecture)              *
 *                                                                              *
-*  FILE: XICA_Template.pas                                                        *
+*  FILE: XICA_Sane.pas                                                        *
 *                                                                              *
 *  VERSION:     0.0.1                                                          *
 *                                                                              *
 *  DESCRIPTION:                                                                *
-*    A Base Empty Structure for Copy/Paste                                     *
+*    Sane implementation                                                      *
 *                                                                              *
 ********************************************************************************
 *                                                                              *
@@ -15,7 +15,7 @@
 *  See changelog.txt for Change Log                                            *
 *                                                                              *
 *******************************************************************************)
-unit XICA_Template;
+unit XICA_Sane;
 
 {$ifdef fpc}
   {$mode delphi}
@@ -26,15 +26,17 @@ unit XICA_Template;
 
 interface
 
+{$ifdef LINUX}
+
 uses Classes, SysUtils,
      {$ifdef fpc}testutils,{$else}DelphiCompatibility,{$endif}
-     //Your units
+     sane, saneopts,
      XICA_Types, XICA_Classes;
 
 type
-  { TXICA_TemplateItem }
+  { TXICA_SaneItem }
 
-  TXICA_TemplateItem = class(TXICA_Item)
+  TXICA_SaneItem = class(TXICA_Item)
   protected
     //Get Max Paper Width, Height form the Device (in Inches)
     function _GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean; override;
@@ -130,18 +132,26 @@ type
     function SetBitDepth(const Value: Integer): Boolean; override;
   end;
 
-  { TXICA_TemplateDevice }
+  { TXICA_SaneDevice }
 
-  TXICA_TemplateDevice = class(TXICA_Device)
+  TXICA_SaneDevice = class(TXICA_Device)
   protected
+    devHandle: SANE_Handle;
+    lres: SANE_Status;
+
+    rOpened,
     rEnabled: Boolean;
-    rDownloadItem: TXICA_TemplateItem;
+    rDownloadItem: TXICA_SaneItem;
 
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
+    function OpenDS: Boolean; virtual;
+    procedure CloseDS; virtual;
+
   public
     constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); overload; override;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADevice: SANE_Device); overload; virtual;
     destructor Destroy; override;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
@@ -151,22 +161,21 @@ type
                               out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; override;
   end;
 
-  { TXICA_TemplateManager }
+  { TXICA_SaneManager }
 
-  TXICA_TemplateManager = class(TXICA_DeviceManager)
+  TXICA_SaneManager = class(TXICA_DeviceManager)
   protected
-    TemplateDirectory: String;
-    rLibHandle: TLibHandle;
-    lRes: HResult;
+    lRes: SANE_Status;
+    rOpenedSources: Integer;
 
     //Enumerate the avaliable devices
     function _EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean; override;
 
-    //Loads Template library and set rLibrayLoaded if it loaded sucessfully
-    procedure LoadTemplateLibrary; virtual;
+    //Loads Sane library and set rLibrayLoaded if it loaded sucessfully
+    procedure LoadSaneLibrary; virtual;
 
-    //Unloads Template library
-    procedure UnloadTemplateLibrary; virtual;
+    //Unloads Sane library
+    procedure UnloadSaneLibrary; virtual;
 
   public
     constructor Create(const AEnumAll: Boolean = True); override;
@@ -178,36 +187,40 @@ type
     class function Name: String; override;
   end;
 
+{$endif}
+
 implementation
+
+{$ifdef LINUX}
 
 uses XICA;
 
 const
-  {Name of the Template library for 32 bits enviroment}
-  TemplateLIBRARY_64 = 'Template_64.DLL';
-  TemplateLIBRARY_32 = 'Template_32.DLL';
+  {Name of the Sane library for 32 bits enviroment}
+  SaneLIBRARY_64 = 'Sane_64.DLL';
+  SaneLIBRARY_32 = 'Sane_32.DLL';
 
   {$IFDEF WIN64}
-  TemplateLIBRARY = TemplateLIBRARY_64;
+  SaneLIBRARY = SaneLIBRARY_64;
   {$ELSE}
-  TemplateLIBRARY = TemplateLIBRARY_32;
+  SaneLIBRARY = SaneLIBRARY_32;
   {$ENDIF}
 
 var
-   Template_Manager: TXICA_TemplateManager = nil;
+   Sane_Manager: TXICA_SaneManager = nil;
 
-{ TXICA_TemplateItem }
+{ TXICA_SaneItem }
 
-destructor TXICA_TemplateItem.Destroy;
+destructor TXICA_SaneItem.Destroy;
 begin
   inherited Destroy;
 end;
 
-function TXICA_TemplateItem.Download: Integer;
+function TXICA_SaneItem.Download: Integer;
 begin
   Result:= 0;
 
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   if (rDownloadItem = nil) then
   try
      rDownloadItem:= Self;
@@ -223,67 +236,67 @@ begin
   end;
 end;
 
-function TXICA_TemplateItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+function TXICA_SaneItem.GetResolutionsX(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
   Result:= [];
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
+function TXICA_SaneItem.GetResolutionsY(out Current, Default: Integer; out Values: TArrayInteger): TXICA_PropertyFlags;
 begin
   Result:= [];
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetResolution(out AXRes, AYRes: Integer): Boolean;
+function TXICA_SaneItem.GetResolution(out AXRes, AYRes: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
+function TXICA_SaneItem.SetResolution(const AXRes, AYRes: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetPaperRect(out Current: TRect): Boolean;
+function TXICA_SaneItem.GetPaperRect(out Current: TRect): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetPaperRect(out Current, Default: TRect): Boolean;
+function TXICA_SaneItem.GetPaperRect(out Current, Default: TRect): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
+function TXICA_SaneItem.SetPaperRect(const X, Y, Width, Height: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem._GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
+function TXICA_SaneItem._GetPaperSizeMax(out AMaxWidth, AMaxHeight: Single): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetRotation(out Value: TXICA_Rotation): Boolean;
+function TXICA_SaneItem.GetRotation(out Value: TXICA_Rotation): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
+function TXICA_SaneItem.GetRotation(out Current, Default: TXICA_Rotation; out Values: TXICA_Rotations): Boolean;
 begin
   Result:= False;
   try
@@ -293,15 +306,15 @@ begin
   end;
 end;
 
-function TXICA_TemplateItem.SetRotation(const Value: TXICA_Rotation): Boolean;
+function TXICA_SaneItem.SetRotation(const Value: TXICA_Rotation): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
+function TXICA_SaneItem.GetDocumentHandling(out Value: TXICA_DocumentHandlings): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
+function TXICA_SaneItem.GetDocumentHandling(out Current, Default, Values: TXICA_DocumentHandlings): Boolean;
 begin
   Result:= False;
   try
@@ -311,75 +324,75 @@ begin
   end;
 end;
 
-function TXICA_TemplateItem.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
+function TXICA_SaneItem.SetDocumentHandling(const Value: TXICA_DocumentHandlings): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetPages(out Current: Integer): Boolean;
+function TXICA_SaneItem.GetPages(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_SaneItem.GetPages(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.SetPages(const Value: Integer): Boolean;
+function TXICA_SaneItem.SetPages(const Value: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetBrightness(out Current: Integer): Boolean;
+function TXICA_SaneItem.GetBrightness(out Current: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_SaneItem.GetBrightness(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.SetBrightness(const Value: Integer): Boolean;
+function TXICA_SaneItem.SetBrightness(const Value: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetContrast(out Current: Integer): Boolean;
+function TXICA_SaneItem.GetContrast(out Current: Integer): Boolean;
 begin
   Result:= False;
-  with TXICA_TemplateDevice(rOwner) do
+  with TXICA_SaneDevice(rOwner) do
   try
 
   finally
   end;
 end;
 
-function TXICA_TemplateItem.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
+function TXICA_SaneItem.GetContrast(out Current, Default, AMin, AMax, AStep: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.SetContrast(const Value: Integer): Boolean;
+function TXICA_SaneItem.SetContrast(const Value: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
+function TXICA_SaneItem.GetImageFormat(out Current: TXICA_ImageFormat): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
+function TXICA_SaneItem.GetImageFormat(out Current, Default: TXICA_ImageFormat; out Values: TXICA_ImageFormats): Boolean;
 begin
   Result:= False;
   try
@@ -389,16 +402,16 @@ begin
   end;
 end;
 
-function TXICA_TemplateItem.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
+function TXICA_SaneItem.SetImageFormat(const Value: TXICA_ImageFormat; out ImgExt: String): Boolean;
 begin
   Result:= inherited SetImageFormat(Value, ImgExt);
 end;
 
-function TXICA_TemplateItem.GetDataType(out Current: TXICA_DataType): Boolean;
+function TXICA_SaneItem.GetDataType(out Current: TXICA_DataType): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
+function TXICA_SaneItem.GetDataType(out Current, Default: TXICA_DataType; out Values: TXICA_DataTypes): Boolean;
 begin
   Result:= False;
   try
@@ -408,29 +421,29 @@ begin
   end;
 end;
 
-function TXICA_TemplateItem.SetDataType(const Value: TXICA_DataType): Boolean;
+function TXICA_SaneItem.SetDataType(const Value: TXICA_DataType): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
+function TXICA_SaneItem.GetBitDepth(out Current, Default: Integer; out Values: TArrayInteger): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.GetBitDepth(out Current: Integer): Boolean;
+function TXICA_SaneItem.GetBitDepth(out Current: Integer): Boolean;
 begin
 end;
 
-function TXICA_TemplateItem.SetBitDepth(const Value: Integer): Boolean;
+function TXICA_SaneItem.SetBitDepth(const Value: Integer): Boolean;
 begin
 end;
 
 
-{ TXICA_TemplateDevice }
+{ TXICA_SaneDevice }
 
-function TXICA_TemplateDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
+function TXICA_SaneDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
    curName: String;
-   curItem: TXICA_TemplateItem;
+   curItem: TXICA_SaneItem;
 
 begin
   Result:= False;
@@ -448,7 +461,43 @@ begin
   end;
 end;
 
-constructor TXICA_TemplateDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
+function TXICA_SaneDevice.OpenDS: Boolean;
+begin
+  try
+     if not(TXICA_SaneManager(rOwner).Enabled) then TXICA_SaneManager(rOwner).LoadSaneLibrary;
+
+     //Open only if it is not already opened
+     if not(rOpened) then
+     begin
+       lRes:= sane_open(PChar(rID), devHandle);
+
+       if (lRes = SANE_STATUS_GOOD) then
+       begin
+         //Increase the loaded sources count variable
+         inc(TXICA_SaneManager(rOwner).rOpenedSources);
+         rOpened:= True;
+       end;
+     end;
+
+  finally
+     Result:= rOpened;
+  end;
+end;
+
+procedure TXICA_SaneDevice.CloseDS;
+begin
+  //Close only if it is opened
+  if rOpened then
+  begin
+    sane_close(devHandle);
+
+    //Decrease the loaded sources count variable
+    dec(TXICA_SaneManager(rOwner).rOpenedSources);
+    rOpened:= False;
+  end;
+end;
+
+constructor TXICA_SaneDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 
@@ -456,12 +505,23 @@ begin
   rDownloadItem:= nil;
 end;
 
-destructor TXICA_TemplateDevice.Destroy;
+constructor TXICA_SaneDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADevice: SANE_Device);
+begin
+  inherited Create(AOwner, AIndex, ADevice.name);
+
+//  rDevice:= ADevice;
+  rManufacturer:= ADevice.vendor;
+  rName:= ADevice.model;
+//  rVersion:= rIdentity.Version.MajorNum;
+//  rVersionSub:= rIdentity.Version.MinorNum;
+end;
+
+destructor TXICA_SaneDevice.Destroy;
 begin
   inherited Destroy;
 end;
 
-function TXICA_TemplateDevice.DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
+function TXICA_SaneDevice.DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
                                           APath, AFileName: String;
                                           out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer;
 var
@@ -476,7 +536,7 @@ begin
   Result:= 0;
   DownloadedFiles:= nil;
 
-  if (TXICA_TemplateManager(rOwner) = nil) then exit;
+  if (TXICA_SaneManager(rOwner) = nil) then exit;
 
   try
      if (APath = '') or CharInSet(APath[Length(APath)], AllowDirectorySeparators)
@@ -492,7 +552,7 @@ begin
 
      //Download....
 
-     if (lres = S_OK) then
+     if (lres = SANE_STATUS_GOOD) then
      begin
        //Copy filePaths to DownloadedFiles and Free elements
        SetLength(DownloadedFiles, rDownload_Count);
@@ -508,50 +568,44 @@ begin
 end;
 
 
-{ TXICA_TemplateManager }
+{ TXICA_SaneManager }
 
-procedure TXICA_TemplateManager.LoadTemplateLibrary;
+procedure TXICA_SaneManager.LoadSaneLibrary;
 begin
   try
-     rLibHandle:= LoadLibrary(PChar(TemplateDirectory + TemplateLIBRARY));
-     if (rLibHandle <> 0) then
-     begin
-     end;
+     sane.Load;
 
   except
-    rLibHandle:= 0;
   end;
 end;
 
-procedure TXICA_TemplateManager.UnloadTemplateLibrary;
+procedure TXICA_SaneManager.UnloadSaneLibrary;
 begin
   try
-     if (rLibHandle <> 0) then FreeLibrary(rLibHandle);
-     rLibHandle:= 0;
+     sane.Unload;
 
   except
-
   end;
 end;
 
-function TXICA_TemplateManager._EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean;
+function TXICA_SaneManager._EnumerateDevices(PreserveSelected: Boolean; ALastSelected: TXICA_Device): Boolean;
 var
   i:integer;
-  devCount: Integer;
-  curDevice: TXICA_TemplateDevice;
-  curName: String;
+  curDevice: TXICA_SaneDevice;
+  Devicelist: PSANE_DeviceArray;
+  pDevice: PSANE_Device;
 
   procedure CreateDevice;
   begin
-    if PreserveSelected and (ALastSelected <> nil) //and (ALastSelected.ID = MakeID(curIdentity))
+    if PreserveSelected and (ALastSelected <> nil) and (ALastSelected.ID = pDevice^.name)
     then begin
-           curDevice:= TXICA_TemplateDevice(ALastSelected);
+           curDevice:= TXICA_SaneDevice(ALastSelected);
            Add(curDevice.ID, ALastSelected);
            SelectedIndex:= i;
            curDevice.rIndex:= i;  //Update Index because can be different (Actually not used)
          end
     else begin
-           curDevice:= TXICA_TemplateDevice.Create(Self, i, curName);
+           curDevice:= TXICA_SaneDevice.Create(Self, i, pDevice^);
            Add(curDevice.ID, curDevice);
          end;
   end;
@@ -559,38 +613,66 @@ var
 begin
   Result:= False;
 
-  //Enum...
+  lRes:= sane_init(nil, nil);
+  if (lRes = SANE_STATUS_GOOD) then
+  try
+     Devicelist:= nil;
+     lRes := sane_get_devices(Devicelist, SANE_TRUE);
+     if (lRes = SANE_STATUS_GOOD) then
+     begin
+       i:= 0;
+       repeat
+         try
+            pDevice:= Devicelist^[i];
+         except
+            pDevice:= nil;
+         end;
+
+         if (pDevice <> nil) then
+         begin
+           CreateDevice;
+           Inc(i);
+         end;
+       until (pDevice = nil);
+     end;
+
+  finally
+     sane_exit;
+  end;
 
   Result :=True;
 end;
 
-constructor TXICA_TemplateManager.Create(const AEnumAll: Boolean = True);
+constructor TXICA_SaneManager.Create(const AEnumAll: Boolean = True);
 begin
   inherited Create(AEnumAll);
 
-  LoadTemplateLibrary;
+  rOpenedSources:= 0;
+  LoadSaneLibrary;
 end;
 
-destructor TXICA_TemplateManager.Destroy;
+destructor TXICA_SaneManager.Destroy;
 begin
   inherited Destroy;
 
-  UnloadTemplateLibrary;
+  UnloadSaneLibrary;
 end;
 
-function TXICA_TemplateManager.Enabled: Boolean;
+function TXICA_SaneManager.Enabled: Boolean;
 begin
-  Result:= (rLibHandle <> 0);
+  Result:= (sane.libHandle <> 0);
 end;
 
-class function TXICA_TemplateManager.Name: String;
+class function TXICA_SaneManager.Name: String;
 begin
-  Result:= 'Template';
+  Result:= 'Sane';
 end;
 
 initialization
-  Template_Manager:= TXICA_TemplateManager.Create(XICA_EnumAllDevices);
-  XICA_RegisterDeviceManager(TXICA_TemplateManager.Name, Template_Manager);
+  Sane_Manager:= TXICA_SaneManager.Create(XICA_EnumAllDevices);
+  XICA_RegisterDeviceManager(TXICA_SaneManager.Name, Sane_Manager);
+
+{$endif}
 
 end.
 

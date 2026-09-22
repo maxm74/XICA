@@ -14,6 +14,7 @@ uses
   XICA_Types, XICA_PaperSizes, XICA_Classes, XICA,
   XICA_WIA,
   XICA_Twain,
+  XICA_Sane,
   XICA_SelectForm, XICA_SettingsForm;
 
 type
@@ -87,7 +88,7 @@ end;
 
 procedure TXICATests.FormDestroy(Sender: TObject);
 begin
-  if (XICA_Manager <> nil) then XICA_Manager.Free;
+ // if (XICA_Manager <> nil) then XICA_Manager.Free;
 end;
 
 procedure TXICATests.GetSelectedItem;

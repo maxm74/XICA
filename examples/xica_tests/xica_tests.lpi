@@ -79,17 +79,6 @@
         <PackageName Value="LCL"/>
       </Item>
     </RequiredPackages>
-    <Units>
-      <Unit>
-        <Filename Value="xica_tests.lpr"/>
-      </Unit>
-      <Unit>
-        <Filename Value="xica_tests_Main.pas"/>
-        <ComponentName Value="XICATests"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
-      </Unit>
-    </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
@@ -99,7 +88,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\..\src;..\..\src\wia;..\..\src\twain;..\..\src\ui"/>
+      <OtherUnitFiles Value="..\..\src;..\..\src\wia;..\..\src\twain;..\..\src\sane;..\..\src\ui"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

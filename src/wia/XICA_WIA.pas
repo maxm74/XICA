@@ -181,6 +181,7 @@ type
 
   TXICA_WiaDevice = class(TXICA_Device)
   protected
+    lres: HResult;
     pRootItem: IWiaItem2;
     pRootProperties: IWiaPropertyStorage;
 

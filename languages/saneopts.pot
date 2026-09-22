@@ -1,0 +1,681 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+#: saneopts.sane_desc_advanced
+msgid "Hardware specific options"
+msgstr ""
+
+#: saneopts.sane_desc_analog_gamma
+msgid "Analog gamma-correction"
+msgstr ""
+
+#: saneopts.sane_desc_analog_gamma_b
+msgid "Analog gamma-correction for blue"
+msgstr ""
+
+#: saneopts.sane_desc_analog_gamma_bind
+msgctxt "saneopts.sane_desc_analog_gamma_bind"
+msgid "In RGB-mode use same values for each color"
+msgstr ""
+
+#: saneopts.sane_desc_analog_gamma_g
+msgid "Analog gamma-correction for green"
+msgstr ""
+
+#: saneopts.sane_desc_analog_gamma_r
+msgid "Analog gamma-correction for red"
+msgstr ""
+
+#: saneopts.sane_desc_autofocus
+msgid "Perform autofocus before scan"
+msgstr ""
+
+#: saneopts.sane_desc_backtrack
+msgid "Controls whether backtracking is forced."
+msgstr ""
+
+#: saneopts.sane_desc_bit_depth
+msgid "Number of bits per sample, typical values are 1 for \"line-art\" and 8 for multibit scans."
+msgstr ""
+
+#: saneopts.sane_desc_black_level
+msgctxt "saneopts.sane_desc_black_level"
+msgid "Selects what radiance level should be considered \"black\"."
+msgstr ""
+
+#: saneopts.sane_desc_brightness
+msgid "Controls the brightness of the acquired image."
+msgstr ""
+
+#: saneopts.sane_desc_cal_expos_time
+msgid "Define exposure-time for calibration"
+msgstr ""
+
+#: saneopts.sane_desc_cal_expos_time_b
+msgid "Define exposure-time for blue calibration"
+msgstr ""
+
+#: saneopts.sane_desc_cal_expos_time_g
+msgid "Define exposure-time for green calibration"
+msgstr ""
+
+#: saneopts.sane_desc_cal_expos_time_r
+msgid "Define exposure-time for red calibration"
+msgstr ""
+
+#: saneopts.sane_desc_cal_lamp_den
+msgid "Define lamp density for calibration"
+msgstr ""
+
+#: saneopts.sane_desc_cancel
+msgid "Cancel button"
+msgstr ""
+
+#: saneopts.sane_desc_contrast
+msgid "Controls the contrast of the acquired image."
+msgstr ""
+
+#: saneopts.sane_desc_copy
+msgid "Copy button"
+msgstr ""
+
+#: saneopts.sane_desc_cover_open
+msgid "Cover open"
+msgstr ""
+
+#: saneopts.sane_desc_custom_gamma
+msgid "Determines whether a builtin or a custom gamma-table should be used."
+msgstr ""
+
+#: saneopts.sane_desc_dor
+msgid "Use lens that doubles optical resolution"
+msgstr ""
+
+#: saneopts.sane_desc_email
+msgid "Email button"
+msgstr ""
+
+#: saneopts.sane_desc_enhancement
+msgid "Image modification options"
+msgstr ""
+
+#: saneopts.sane_desc_fax
+msgid "Fax button"
+msgstr ""
+
+#: saneopts.sane_desc_file
+msgid "The filename of the image to be loaded."
+msgstr ""
+
+#: saneopts.sane_desc_focus
+msgid "Focus position for manual focus"
+msgstr ""
+
+#: saneopts.sane_desc_gamma_vector
+msgid "Gamma-correction table.  In color mode this option equally affects the red, green, and blue channels simultaneously (i.e., it is an intensity gamma table)."
+msgstr ""
+
+#: saneopts.sane_desc_gamma_vector_b
+msgid "Gamma-correction table for the blue band."
+msgstr ""
+
+#: saneopts.sane_desc_gamma_vector_g
+msgid "Gamma-correction table for the green band."
+msgstr ""
+
+#: saneopts.sane_desc_gamma_vector_r
+msgid "Gamma-correction table for the red band."
+msgstr ""
+
+#: saneopts.sane_desc_geometry
+msgid "Scan area and media size options"
+msgstr ""
+
+#: saneopts.sane_desc_grain_size
+msgid "Selects the \\\"graininess\\\" of the acquired image.  Smaller values result in sharper images."
+msgstr ""
+
+#: saneopts.sane_desc_gray_preview
+msgid "Request that all previews are done in monochrome mode.  On a three-pass scanner this cuts down the number of passes to one and on a one-pass scanner, it reduces the memory requirements and scan-time of the preview."
+msgstr ""
+
+#: saneopts.sane_desc_halftone
+msgid "Selects whether the acquired image should be halftoned (dithered)."
+msgstr ""
+
+#: saneopts.sane_desc_halftone_dimension
+msgid "Sets the size of the halftoning (dithering) pattern used when scanning halftoned images."
+msgstr ""
+
+#: saneopts.sane_desc_halftone_pattern
+msgid "Defines the halftoning (dithering) pattern for scanning halftoned images."
+msgstr ""
+
+#: saneopts.sane_desc_highlight
+msgctxt "saneopts.sane_desc_highlight"
+msgid "Selects what radiance level should be considered \"white\"."
+msgstr ""
+
+#: saneopts.sane_desc_highlight_b
+msgid "Selects what blue radiance level should be considered \"full blue\"."
+msgstr ""
+
+#: saneopts.sane_desc_highlight_g
+msgid "Selects what green radiance level should be considered \"full green\"."
+msgstr ""
+
+#: saneopts.sane_desc_highlight_r
+msgid "Selects what red radiance level should be considered \"full red\"."
+msgstr ""
+
+#: saneopts.sane_desc_hue
+msgid "Controls the \"hue\" (blue-level) of the acquired image."
+msgstr ""
+
+#: saneopts.sane_desc_infrared
+msgid "Perform infrared scan"
+msgstr ""
+
+#: saneopts.sane_desc_lamp_off_at_exit
+msgid "Turn off lamp when program exits"
+msgstr ""
+
+#: saneopts.sane_desc_negative
+msgid "Swap black and white"
+msgstr ""
+
+#: saneopts.sane_desc_num_options
+msgid "Read-only option that specifies how many options a specific device supports."
+msgstr ""
+
+#: saneopts.sane_desc_page_height
+msgid "Specifies the height of the media."
+msgstr ""
+
+#: saneopts.sane_desc_page_loaded
+msgid "Page loaded"
+msgstr ""
+
+#: saneopts.sane_desc_page_width
+msgid "Specifies the width of the media.  Required for automatic centering of sheet-fed scans."
+msgstr ""
+
+#: saneopts.sane_desc_pdf
+msgid "PDF button"
+msgstr ""
+
+#: saneopts.sane_desc_preview
+msgid "Request a preview-quality scan."
+msgstr ""
+
+#: saneopts.sane_desc_quality_cal
+msgid "Do a quality white-calibration"
+msgstr ""
+
+#: saneopts.sane_desc_resolution_bind
+msgid "Use same values for X and Y resolution"
+msgstr ""
+
+#: saneopts.sane_desc_rgb_bind
+msgctxt "saneopts.sane_desc_rgb_bind"
+msgid "In RGB-mode use same values for each color"
+msgstr ""
+
+#: saneopts.sane_desc_saturation
+msgid "The saturation level controls the amount of \"blooming\" that occurs when acquiring an image with a camera. Larger values cause more blooming."
+msgstr ""
+
+#: saneopts.sane_desc_scan
+msgid "Scan button"
+msgstr ""
+
+#: saneopts.sane_desc_scan_br_x
+msgid "Bottom-right x position of scan area."
+msgstr ""
+
+#: saneopts.sane_desc_scan_br_y
+msgid "Bottom-right y position of scan area."
+msgstr ""
+
+#: saneopts.sane_desc_scan_expos_time
+msgid "Define exposure-time for scan"
+msgstr ""
+
+#: saneopts.sane_desc_scan_expos_time_b
+msgid "Define exposure-time for blue scan"
+msgstr ""
+
+#: saneopts.sane_desc_scan_expos_time_g
+msgid "Define exposure-time for green scan"
+msgstr ""
+
+#: saneopts.sane_desc_scan_expos_time_r
+msgid "Define exposure-time for red scan"
+msgstr ""
+
+#: saneopts.sane_desc_scan_lamp_den
+msgid "Define lamp density for scan"
+msgstr ""
+
+#: saneopts.sane_desc_scan_mode
+msgid "Selects the scan mode (e.g., lineart, monochrome, or color)."
+msgstr ""
+
+#: saneopts.sane_desc_scan_resolution
+msgid "Sets the resolution of the scanned image."
+msgstr ""
+
+#: saneopts.sane_desc_scan_source
+msgid "Selects the scan source (such as a document-feeder)."
+msgstr ""
+
+#: saneopts.sane_desc_scan_speed
+msgid "Determines the speed at which the scan proceeds."
+msgstr ""
+
+#: saneopts.sane_desc_scan_tl_x
+msgid "Top-left x position of scan area."
+msgstr ""
+
+#: saneopts.sane_desc_scan_tl_y
+msgid "Top-left y position of scan area."
+msgstr ""
+
+#: saneopts.sane_desc_scan_x_resolution
+msgid "Sets the horizontal resolution of the scanned image."
+msgstr ""
+
+#: saneopts.sane_desc_scan_y_resolution
+msgid "Sets the vertical resolution of the scanned image."
+msgstr ""
+
+#: saneopts.sane_desc_select_exposure_time
+msgid "Enable selection of exposure-time"
+msgstr ""
+
+#: saneopts.sane_desc_select_lamp_density
+msgid "Enable selection of lamp density"
+msgstr ""
+
+#: saneopts.sane_desc_sensors
+msgid "Scanner sensors and buttons"
+msgstr ""
+
+#: saneopts.sane_desc_shadow
+msgctxt "saneopts.sane_desc_shadow"
+msgid "Selects what radiance level should be considered \"black\"."
+msgstr ""
+
+#: saneopts.sane_desc_shadow_b
+msgid "Selects what blue radiance level should be considered \"black\"."
+msgstr ""
+
+#: saneopts.sane_desc_shadow_g
+msgid "Selects what green radiance level should be considered \"black\"."
+msgstr ""
+
+#: saneopts.sane_desc_shadow_r
+msgid "Selects what red radiance level should be considered \"black\"."
+msgstr ""
+
+#: saneopts.sane_desc_standard
+msgid "Source, mode and resolution options"
+msgstr ""
+
+#: saneopts.sane_desc_threshold
+msgid "Select minimum-brightness to get a white point"
+msgstr ""
+
+#: saneopts.sane_desc_warmup
+msgid "Warm up lamp before scanning"
+msgstr ""
+
+#: saneopts.sane_desc_white_level
+msgctxt "saneopts.sane_desc_white_level"
+msgid "Selects what radiance level should be considered \"white\"."
+msgstr ""
+
+#: saneopts.sane_desc_white_level_b
+msgid "Selects what blue radiance level should be considered \"white\"."
+msgstr ""
+
+#: saneopts.sane_desc_white_level_g
+msgid "Selects what green radiance level should be considered \"white\"."
+msgstr ""
+
+#: saneopts.sane_desc_white_level_r
+msgid "Selects what red radiance level should be considered \"white\"."
+msgstr ""
+
+#: saneopts.sane_title_advanced
+msgid "Advanced"
+msgstr ""
+
+#: saneopts.sane_title_analog_gamma
+msgid "Analog gamma correction"
+msgstr ""
+
+#: saneopts.sane_title_analog_gamma_b
+msgid "Analog gamma blue"
+msgstr ""
+
+#: saneopts.sane_title_analog_gamma_bind
+msgid "Bind analog gamma"
+msgstr ""
+
+#: saneopts.sane_title_analog_gamma_g
+msgid "Analog gamma green"
+msgstr ""
+
+#: saneopts.sane_title_analog_gamma_r
+msgid "Analog gamma red"
+msgstr ""
+
+#: saneopts.sane_title_autofocus
+msgid "Autofocus"
+msgstr ""
+
+#: saneopts.sane_title_backtrack
+msgid "Force backtracking"
+msgstr ""
+
+#: saneopts.sane_title_bit_depth
+msgid "Bit depth"
+msgstr ""
+
+#: saneopts.sane_title_black_level
+msgid "Black level"
+msgstr ""
+
+#: saneopts.sane_title_brightness
+msgid "Brightness"
+msgstr ""
+
+#: saneopts.sane_title_cal_expos_time
+msgid "Cal. exposure-time"
+msgstr ""
+
+#: saneopts.sane_title_cal_expos_time_b
+msgid "Cal. exposure-time for blue"
+msgstr ""
+
+#: saneopts.sane_title_cal_expos_time_g
+msgid "Cal. exposure-time for green"
+msgstr ""
+
+#: saneopts.sane_title_cal_expos_time_r
+msgid "Cal. exposure-time for red"
+msgstr ""
+
+#: saneopts.sane_title_cal_lamp_den
+msgid "Cal. lamp density"
+msgstr ""
+
+#: saneopts.sane_title_contrast
+msgid "Contrast"
+msgstr ""
+
+#: saneopts.sane_title_custom_gamma
+msgid "Use custom gamma table"
+msgstr ""
+
+#: saneopts.sane_title_dor
+msgid "Double Optical Resolution"
+msgstr ""
+
+#: saneopts.sane_title_enhancement
+msgid "Enhancement"
+msgstr ""
+
+#: saneopts.sane_title_file
+msgid "Filename"
+msgstr ""
+
+#: saneopts.sane_title_focus
+msgid "Focus position"
+msgstr ""
+
+#: saneopts.sane_title_gamma_vector
+msgid "Image intensity"
+msgstr ""
+
+#: saneopts.sane_title_gamma_vector_b
+msgid "Blue intensity"
+msgstr ""
+
+#: saneopts.sane_title_gamma_vector_g
+msgid "Green intensity"
+msgstr ""
+
+#: saneopts.sane_title_gamma_vector_r
+msgid "Red intensity"
+msgstr ""
+
+#: saneopts.sane_title_geometry
+msgid "Geometry"
+msgstr ""
+
+#: saneopts.sane_title_grain_size
+msgid "Grain size"
+msgstr ""
+
+#: saneopts.sane_title_gray_preview
+msgid "Force monochrome preview"
+msgstr ""
+
+#: saneopts.sane_title_halftone
+msgid "Halftoning"
+msgstr ""
+
+#: saneopts.sane_title_halftone_dimension
+msgid "Halftone pattern size"
+msgstr ""
+
+#: saneopts.sane_title_halftone_pattern
+msgid "Halftone pattern"
+msgstr ""
+
+#: saneopts.sane_title_highlight
+msgid "Highlight"
+msgstr ""
+
+#: saneopts.sane_title_highlight_b
+msgid "Highlight for blue"
+msgstr ""
+
+#: saneopts.sane_title_highlight_g
+msgid "Highlight for green"
+msgstr ""
+
+#: saneopts.sane_title_highlight_r
+msgid "Highlight for red"
+msgstr ""
+
+#: saneopts.sane_title_hue
+msgid "Hue"
+msgstr ""
+
+#: saneopts.sane_title_infrared
+msgid "Infrared scan"
+msgstr ""
+
+#: saneopts.sane_title_lamp_off_at_exit
+msgid "Lamp off at exit"
+msgstr ""
+
+#: saneopts.sane_title_negative
+msgid "Negative"
+msgstr ""
+
+#: saneopts.sane_title_num_options
+msgid "Number of options"
+msgstr ""
+
+#: saneopts.sane_title_page_height
+msgid "Page height"
+msgstr ""
+
+#: saneopts.sane_title_page_width
+msgid "Page width"
+msgstr ""
+
+#: saneopts.sane_title_preview
+msgid "Preview"
+msgstr ""
+
+#: saneopts.sane_title_quality_cal
+msgid "Quality calibration"
+msgstr ""
+
+#: saneopts.sane_title_resolution_bind
+msgid "Bind X and Y resolution"
+msgstr ""
+
+#: saneopts.sane_title_rgb_bind
+msgid "Bind RGB"
+msgstr ""
+
+#: saneopts.sane_title_saturation
+msgid "Saturation"
+msgstr ""
+
+#: saneopts.sane_title_scan_br_x
+msgid "Bottom-right x"
+msgstr ""
+
+#: saneopts.sane_title_scan_br_y
+msgid "Bottom-right y"
+msgstr ""
+
+#: saneopts.sane_title_scan_expos_time
+msgid "Scan exposure-time"
+msgstr ""
+
+#: saneopts.sane_title_scan_expos_time_b
+msgid "Scan exposure-time for blue"
+msgstr ""
+
+#: saneopts.sane_title_scan_expos_time_g
+msgid "Scan exposure-time for green"
+msgstr ""
+
+#: saneopts.sane_title_scan_expos_time_r
+msgid "Scan exposure-time for red"
+msgstr ""
+
+#: saneopts.sane_title_scan_lamp_den
+msgid "Scan lamp density"
+msgstr ""
+
+#: saneopts.sane_title_scan_mode
+msgid "Scan mode"
+msgstr ""
+
+#: saneopts.sane_title_scan_resolution
+msgid "Scan resolution"
+msgstr ""
+
+#: saneopts.sane_title_scan_source
+msgid "Scan source"
+msgstr ""
+
+#: saneopts.sane_title_scan_speed
+msgid "Scan speed"
+msgstr ""
+
+#: saneopts.sane_title_scan_tl_x
+msgid "Top-left x"
+msgstr ""
+
+#: saneopts.sane_title_scan_tl_y
+msgid "Top-left y"
+msgstr ""
+
+#: saneopts.sane_title_scan_x_resolution
+msgid "X-resolution"
+msgstr ""
+
+#: saneopts.sane_title_scan_y_resolution
+msgid "Y-resolution"
+msgstr ""
+
+#: saneopts.sane_title_select_exposure_time
+msgid "Set exposure-time"
+msgstr ""
+
+#: saneopts.sane_title_select_lamp_density
+msgid "Set lamp density"
+msgstr ""
+
+#: saneopts.sane_title_sensors
+msgid "Sensors"
+msgstr ""
+
+#: saneopts.sane_title_shadow
+msgid "Shadow"
+msgstr ""
+
+#: saneopts.sane_title_shadow_b
+msgid "Shadow for blue"
+msgstr ""
+
+#: saneopts.sane_title_shadow_g
+msgid "Shadow for green"
+msgstr ""
+
+#: saneopts.sane_title_shadow_r
+msgid "Shadow for red"
+msgstr ""
+
+#: saneopts.sane_title_standard
+msgid "Standard"
+msgstr ""
+
+#: saneopts.sane_title_threshold
+msgid "Threshold"
+msgstr ""
+
+#: saneopts.sane_title_warmup
+msgid "Warmup lamp"
+msgstr ""
+
+#: saneopts.sane_title_white_level
+msgid "White level"
+msgstr ""
+
+#: saneopts.sane_title_white_level_b
+msgid "White level for blue"
+msgstr ""
+
+#: saneopts.sane_title_white_level_g
+msgid "White level for green"
+msgstr ""
+
+#: saneopts.sane_title_white_level_r
+msgid "White level for red"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_color
+msgid "Color"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_color_halftone
+msgid "Color Halftone"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_color_lineart
+msgid "Color Lineart"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_gray
+msgid "Gray"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_halftone
+msgid "Halftone"
+msgstr ""
+
+#: saneopts.sane_value_scan_mode_lineart
+msgid "Lineart"
+msgstr ""
+

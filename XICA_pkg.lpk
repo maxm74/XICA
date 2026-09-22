@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
-  <Package Version="5">
+  <Package Version="6">
     <PathDelim Value="\"/>
     <Name Value="XICA_pkg"/>
     <Type Value="RunTimeOnly"/>
@@ -9,7 +9,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <OtherUnitFiles Value="src;src\wia;src\twain"/>
+        <OtherUnitFiles Value="src;src\wia;src\twain;src\sane"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\$(BuildMode)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -53,6 +53,10 @@
       <Item>
         <Filename Value="src\twain\XICA_Twain.pas"/>
         <UnitName Value="XICA_Twain"/>
+      </Item>
+      <Item>
+        <Filename Value="src\sane\XICA_Sane.pas"/>
+        <UnitName Value="XICA_Sane"/>
       </Item>
     </Files>
     <i18n>
