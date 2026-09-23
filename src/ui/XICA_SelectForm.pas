@@ -51,8 +51,10 @@ type
     SelectedDevice: TXICA_Device;
     LastSelected: TListItem;
 
+    procedure NoDevicePresent;
+
     procedure FillList; overload;
-    procedure FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean); overload;
+    function FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean): Integer; overload;
 
   end;
 
@@ -162,11 +164,16 @@ begin
   tmSelected.Enabled:= False;
 end;
 
-procedure TXICASelectForm.FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean);
+procedure TXICASelectForm.NoDevicePresent;
+begin
+  MessageDlg(rsNoDevicePresent, mtError, [mbOk], 0);
+  btOk.Enabled:= False;
+end;
+
+function TXICASelectForm.FillList(ADeviceManager: TXICA_DeviceManager; AShowDeviceManagerName: Boolean): Integer;
 var
    i,
    txtW,
-   numDevices,
    selectedIndex: Integer;
    curItem: TListItem;
    curDevice: TXICA_Device;
@@ -174,70 +181,75 @@ var
 
 begin
   selectedIndex:= -1;
-  numDevices:= ADeviceManager.Count;
-  if (numDevices > 0)
-  then begin
-         if AShowDeviceManagerName then
-         begin
-           curItem:= lvSources.Items.Add;
-           curItem.Caption:= ADeviceManager.Name;
-           curItem.Data:= nil;
-         end;
-         for i:=0 to numDevices-1 do
-         if ADeviceManager.Get(i, curDevice) then
-         begin
-           curItem:= lvSources.Items.Add;
-           curItem.Data:= curDevice;
+  Result:= ADeviceManager.Count;
+  if (Result > 0) then
+  begin
+    if AShowDeviceManagerName then
+    begin
+      curItem:= lvSources.Items.Add;
+      curItem.Caption:= ADeviceManager.Name;
+      curItem.Data:= nil;
+    end;
 
-           //Add Name Colums and increase width if necessary (since MinWidth/AutoSize don't work as expected)
-           txt:= curDevice.Name;
-           curItem.Caption:= txt;
-           txtW:= lvSources.Canvas.TextWidth(txt)+16;
-           if (lvSources.Columns[0].Width < txtW) then lvSources.Columns[0].Width:= txtW;
+    for i:=0 to Result-1 do
+    if ADeviceManager.Get(i, curDevice) then
+    begin
+      curItem:= lvSources.Items.Add;
+      curItem.Data:= curDevice;
 
-           //Add Manufacturer
-           txt:= curDevice.Manufacturer;
-           curItem.SubItems.Add(txt);
-           txtW:= lvSources.Canvas.TextWidth(txt)+16;
-           if (lvSources.Columns[1].Width < txtW) then lvSources.Columns[1].Width:= txtW;
+      //Add Name Colums and increase width if necessary (since MinWidth/AutoSize don't work as expected)
+      txt:= curDevice.Name;
+      curItem.Caption:= txt;
+      txtW:= lvSources.Canvas.TextWidth(txt)+16;
+      if (lvSources.Columns[0].Width < txtW) then lvSources.Columns[0].Width:= txtW;
 
-           //Add Type
-           txt:= curDevice.Type_Str;
-           curItem.SubItems.Add(txt);
-           txtW:= lvSources.Canvas.TextWidth(txt)+16;
-           if (lvSources.Columns[2].Width < txtW) then lvSources.Columns[2].Width:= txtW;
+      //Add Manufacturer
+      txt:= curDevice.Manufacturer;
+      curItem.SubItems.Add(txt);
+      txtW:= lvSources.Canvas.TextWidth(txt)+16;
+      if (lvSources.Columns[1].Width < txtW) then lvSources.Columns[1].Width:= txtW;
 
-           //if is Current Selected Scanner set selectedIndex
-           if (SelectedDevice <> nil) and (SelectedDevice.ID = curDevice.ID)
-           then selectedIndex:= curItem.Index;
-         end;
+      //Add Type
+      txt:= curDevice.Type_Str;
+      curItem.SubItems.Add(txt);
+      txtW:= lvSources.Canvas.TextWidth(txt)+16;
+      if (lvSources.Columns[2].Width < txtW) then lvSources.Columns[2].Width:= txtW;
 
-         //Select Current Scanner
-         if (selectedIndex > -1)
-         then lvSources.ItemIndex:= selectedIndex
-         else lvSources.ItemIndex:= 0;
-       end
-  else MessageDlg(rsNoDevicePresent, mtError, [mbOk], 0);
+      //if is Current Selected Scanner set selectedIndex
+      if (SelectedDevice <> nil) and (SelectedDevice.ID = curDevice.ID) then selectedIndex:= curItem.Index;
+    end;
+
+    //Select Current Scanner
+    if (selectedIndex > -1)
+    then lvSources.ItemIndex:= selectedIndex
+    else lvSources.ItemIndex:= 0;
+  end;
 end;
 
 procedure TXICASelectForm.FillList;
 var
-   i: Integer;
+   i, mCount, dCount: Integer;
    curDeviceManager: TXICA_DeviceManager;
 
 begin
-  //selectedIndex:=-1;
+  dCount:= 0;
   lvSources.Clear;
 
   if (ASender is TXICA_Manager)
   then begin
-        for i:=0 to  TXICA_Manager(ASender).Count-1 do
-          if TXICA_Manager(ASender).Get(i, curDeviceManager) and
-             curDeviceManager.Enabled then FillList(curDeviceManager, True);
+        mCount:= TXICA_Manager(ASender).Count;
+        if (mCount > 0)
+        then begin
+               for i:=0 to  mCount-1 do
+                  if TXICA_Manager(ASender).Get(i, curDeviceManager) and
+                     curDeviceManager.Enabled then inc(dCount, FillList(curDeviceManager, True));
+             end
+        else NoDevicePresent;
        end
   else
-  if (ASender is TXICA_DeviceManager)
-  then FillList(TXICA_DeviceManager(ASender), False);
+  if (ASender is TXICA_DeviceManager) then dCount:= FillList(TXICA_DeviceManager(ASender), False);
+
+  btOk.Enabled:= (dCount > 0);
 end;
 
 initialization

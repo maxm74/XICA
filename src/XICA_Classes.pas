@@ -499,7 +499,6 @@ type
     rVersion,
     rVersionSub: Integer;
     rEnumAll: Boolean;
-//oldcode    lres: HResult;
 
     Enumerating,
     HasEnumerated: Boolean;

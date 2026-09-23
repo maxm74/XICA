@@ -134,14 +134,19 @@ type
 
   TXICA_TemplateDevice = class(TXICA_Device)
   protected
+    rOpened,
     rEnabled: Boolean;
     rDownloadItem: TXICA_TemplateItem;
 
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
+    function OpenDS: Boolean; virtual;
+    procedure CloseDS; virtual;
+
   public
     constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String); overload; override;
+    constructor Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADevice: Integer{SOME TEMPLATE RECORD}); overload; virtual;
     destructor Destroy; override;
 
     //Download using Native UI and return the number of files transfered in DownloadedFiles array.
@@ -448,12 +453,61 @@ begin
   end;
 end;
 
+function TXICA_TemplateDevice.OpenDS: Boolean;
+begin
+  try
+     if not(TXICA_TemplateManager(rOwner).Enabled) then TXICA_TemplateManager(rOwner).LoadTemplateLibrary;
+
+     //Open only if it is not already opened
+     if not(rOpened) then
+     begin
+       //Open...
+
+       if (True) then  //if is Opened
+       begin
+         //Increase the loaded sources count variable
+         inc(TXICA_TemplateManager(rOwner).rOpenedSources);
+         rOpened:= True;
+       end;
+     end;
+
+  finally
+     Result:= rOpened;
+  end;
+end;
+
+procedure TXICA_TemplateDevice.CloseDS;
+begin
+  //Close only if it is opened
+  if rOpened then
+  begin
+    //Close
+
+    //Decrease the loaded sources count variable
+    dec(TXICA_TemplateManager(rOwner).rOpenedSources);
+    rOpened:= False;
+  end;
+end;
+
 constructor TXICA_TemplateDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADeviceID: String);
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 
   rEnabled:= False;
   rDownloadItem:= nil;
+  rVersion:= rOwner.Version;
+  rVersionSub:= rOwner.VersionSub;
+end;
+
+constructor TXICA_TemplateDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADevice: Integer{SOME TEMPLATE RECORD});
+begin
+  inherited Create(AOwner, AIndex, ADevice.name);
+
+//  rDevice:= ADevice;
+//  rManufacturer:= rDevice.vendor;
+//  rName:= rDevice.model;
+//  rVersion:= rDevice.Version;
+//  rVersionSub:= rDevice.VersionSub;
 end;
 
 destructor TXICA_TemplateDevice.Destroy;

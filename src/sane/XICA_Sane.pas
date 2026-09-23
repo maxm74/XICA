@@ -26,7 +26,7 @@ unit XICA_Sane;
 
 interface
 
-{$ifdef LINUX}
+{$ifdef UNIX}
 
 uses Classes, SysUtils,
      {$ifdef fpc}testutils,{$else}DelphiCompatibility,{$endif}
@@ -136,6 +136,7 @@ type
 
   TXICA_SaneDevice = class(TXICA_Device)
   protected
+    rDevice: SANE_Device;
     devHandle: SANE_Handle;
     lres: SANE_Status;
 
@@ -165,6 +166,7 @@ type
 
   TXICA_SaneManager = class(TXICA_DeviceManager)
   protected
+    rEnabled: Boolean;
     lRes: SANE_Status;
     rOpenedSources: Integer;
 
@@ -191,7 +193,7 @@ type
 
 implementation
 
-{$ifdef LINUX}
+{$ifdef UNIX}
 
 uses XICA;
 
@@ -501,19 +503,22 @@ constructor TXICA_SaneDevice.Create(const AOwner: TXICA_DeviceManager; const AIn
 begin
   inherited Create(AOwner, AIndex, ADeviceID);
 
+  FillChar(rDevice, Sizeof(rDevice), 0);
   rEnabled:= False;
   rDownloadItem:= nil;
+  rVersion:= rOwner.Version;
+  rVersionSub:= rOwner.VersionSub;
 end;
 
 constructor TXICA_SaneDevice.Create(const AOwner: TXICA_DeviceManager; const AIndex: Integer; const ADevice: SANE_Device);
 begin
   inherited Create(AOwner, AIndex, ADevice.name);
 
-//  rDevice:= ADevice;
-  rManufacturer:= ADevice.vendor;
-  rName:= ADevice.model;
-//  rVersion:= rIdentity.Version.MajorNum;
-//  rVersionSub:= rIdentity.Version.MinorNum;
+  rDevice:= ADevice;
+  rManufacturer:= rDevice.vendor;
+  rName:= rDevice.model;
+//  rVersion:= rDevice.Version;
+//  rVersionSub:= rDevice.VersionSub;
 end;
 
 destructor TXICA_SaneDevice.Destroy;
@@ -571,20 +576,37 @@ end;
 { TXICA_SaneManager }
 
 procedure TXICA_SaneManager.LoadSaneLibrary;
+var
+   ver: SANE_INT;
+
 begin
+  if not(rEnabled) then
   try
-     sane.Load;
+     if sane.Load then
+     begin
+       lRes:= sane_init(@ver, nil);
+       if (lRes = SANE_STATUS_GOOD) then
+       begin
+         rEnabled:= True;
+         rVersion:= SANE_VERSION_MAJOR(ver);
+         rVersionSub:= SANE_VERSION_MINOR(ver);
+       end;
+      end;
 
   except
+    rEnabled:= False;
   end;
 end;
 
 procedure TXICA_SaneManager.UnloadSaneLibrary;
 begin
   try
+     if rEnabled then sane_exit;
      sane.Unload;
+     rEnabled:= False;
 
   except
+    rEnabled:= False;
   end;
 end;
 
@@ -613,8 +635,6 @@ var
 begin
   Result:= False;
 
-  lRes:= sane_init(nil, nil);
-  if (lRes = SANE_STATUS_GOOD) then
   try
      Devicelist:= nil;
      lRes := sane_get_devices(Devicelist, SANE_TRUE);
@@ -637,7 +657,6 @@ begin
      end;
 
   finally
-     sane_exit;
   end;
 
   Result :=True;
@@ -647,6 +666,7 @@ constructor TXICA_SaneManager.Create(const AEnumAll: Boolean = True);
 begin
   inherited Create(AEnumAll);
 
+  rEnabled:= False;
   rOpenedSources:= 0;
   LoadSaneLibrary;
 end;
@@ -660,7 +680,7 @@ end;
 
 function TXICA_SaneManager.Enabled: Boolean;
 begin
-  Result:= (sane.libHandle <> 0);
+  Result:= rEnabled;
 end;
 
 class function TXICA_SaneManager.Name: String;
