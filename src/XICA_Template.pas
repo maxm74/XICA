@@ -141,6 +141,24 @@ type
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
+    //Get Current Capability Value and it's type given the ID
+    function GetCapability(const ACapabilityId: Integer{SOME TEMPLATE Type}; out CapabilityType: Integer{SOME TEMPLATE Type}; out ACapabilityValue): Boolean{SOME TEMPLATE Type}; overload;
+
+    //Get Current and Default Values of a Capability given the ID,
+    function GetCapability(const ACapabilityId: Integer{SOME TEMPLATE Type}; out CapabilityType: Integer{SOME TEMPLATE Type};
+                           out ACapabilityValue, ACapabilityDefaultValue): TXICA_PropertyFlags; overload;
+
+    //Get Current, Default and Possible Values of a Capability given the ID,
+    //  Depending on the type returned in CapabilityType
+    //  ACapabilityListValues can be a Dynamic Array of Integers, Real, etc... user must free it
+    //  if Result contain the Flag prop_RANGE then use XICA_RANGE_XXX Indexes to get MIN/MAX/STEP Values
+    function GetCapability(const ACapabilityId: Integer{SOME TEMPLATE Type}; out CapabilityType: Integer{SOME TEMPLATE Type};
+                           out ACapabilityValue, ACapabilityDefaultValue;
+                           out ACapabilityListValues): TXICA_PropertyFlags; overload;
+
+    //Set the Capability Value given the ID, the user must know the correct type to use
+    function SetCapability(const ACapabilityId: Integer{SOME TEMPLATE Type}; const CapabilityType: Integer{SOME TEMPLATE Type}; const ACapabilityValue): Boolean;
+
     function OpenDS: Boolean; virtual;
     procedure CloseDS; virtual;
 
@@ -154,6 +172,8 @@ type
     function DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
                               APath, AFileName: String;
                               out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; override;
+
+    property Opened: Boolean read rOpened;
   end;
 
   { TXICA_TemplateManager }
@@ -451,6 +471,30 @@ begin
 
   finally
   end;
+end;
+
+function TXICA_TemplateDevice.GetCapability(const ACapabilityId: Integer; out CapabilityType: Integer;
+                                            out ACapabilityValue): Boolean;
+begin
+
+end;
+
+function TXICA_TemplateDevice.GetCapability(const ACapabilityId: Integer; out CapabilityType: Integer;
+                                            out ACapabilityValue, ACapabilityDefaultValue): TXICA_PropertyFlags;
+begin
+
+end;
+
+function TXICA_TemplateDevice.GetCapability(const ACapabilityId: Integer; out CapabilityType: Integer;
+                                            out ACapabilityValue, ACapabilityDefaultValue; out ACapabilityListValues): TXICA_PropertyFlags;
+begin
+
+end;
+
+function TXICA_TemplateDevice.SetCapability(const ACapabilityId: Integer; const CapabilityType: Integer;
+                                            const ACapabilityValue): Boolean;
+begin
+
 end;
 
 function TXICA_TemplateDevice.OpenDS: Boolean;

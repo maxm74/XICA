@@ -147,6 +147,27 @@ type
     //Enumerate the avaliable items
     function _EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean; override;
 
+    //Get Index of a Capability Name, SANE don't have an api to get/set Value given it's name (?)
+    function GetCapabilityIndex(const CapabilityName: String): SANE_Int;
+
+    //Get Current Capability Value and it's type given the ID
+    //function GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type; out ACapabilityValue): Boolean; overload;
+
+    //Get Current and Default Values of a Capability given the ID,
+    function GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
+                           out ACapabilityValue(*, ACapabilityDefaultValue ? in SANE ?*)): TXICA_PropertyFlags; overload;
+
+    //Get Current, Default and Possible Values of a Capability given the ID,
+    //  Depending on the type returned in CapabilityType
+    //  ACapabilityListValues can be a Dynamic Array of Integers, Real, etc... user must free it
+    //  if Result contain the Flag prop_RANGE then use XICA_RANGE_XXX Indexes to get MIN/MAX/STEP Values
+    function GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
+                           out ACapabilityValue(*, ACapabilityDefaultValue ? in SANE ?*);
+                           out ACapabilityListValues): TXICA_PropertyFlags; overload;
+
+    //Set the Capability Value given the ID, the user must know the correct type to use
+    function SetCapability(const ACapabilityId: String; const CapabilityType: SANE_Value_Type; const ACapabilityValue): Boolean;
+
     function OpenDS: Boolean; virtual;
     procedure CloseDS; virtual;
 
@@ -160,6 +181,8 @@ type
     function DownloadNativeUI(hwndParent: THandle; useSystemUI: Boolean;
                               APath, AFileName: String;
                               out DownloadedFiles: TStringArray; UseRelativePath: Boolean=False): Integer; override;
+
+    property Opened: Boolean read rOpened;
   end;
 
   { TXICA_SaneManager }
@@ -210,6 +233,27 @@ const
 
 var
    Sane_Manager: TXICA_SaneManager = nil;
+
+procedure SANEPropertyFlags(const pFlags: SANE_Int; var AFlags: TXICA_PropertyFlags); overload;
+begin
+  if (pFlags and SANE_CAP_INACTIVE <> 0)
+  then begin
+         //If is Inactive then the Option is not Readable/Writable, delete the flags
+         AFlags:= AFlags-[prop_READ];
+         AFlags:= AFlags-[prop_WRITE];
+       end
+  else begin
+         if (pFlags and SANE_CAP_SOFT_SELECT <> 0) then AFlags:= AFlags+[prop_READ];
+         if (pFlags and SANE_CAP_SOFT_DETECT <> 0) then AFlags:= AFlags+[prop_WRITE];
+       end;
+end;
+
+procedure SANEPropertyFlags(const pConstr: SANE_Constraint_Type; var AFlags: TXICA_PropertyFlags); overload;
+begin
+  if (pConstr = SANE_CONSTRAINT_RANGE)
+  then AFlags:= AFlags+[prop_RANGE]
+  else if (pConstr in [SANE_CONSTRAINT_WORD_LIST, SANE_CONSTRAINT_STRING_LIST]) then AFlags:= AFlags+[prop_LIST];
+end;
 
 { TXICA_SaneItem }
 
@@ -444,20 +488,189 @@ end;
 
 function TXICA_SaneDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
+   prevState: Boolean;
    curName: String;
    curItem: TXICA_SaneItem;
+   capType: SANE_Value_Type;
+   curSource: String;
+   listSources: TStringArray;
+
+   curFlags: TXICA_PropertyFlags;
+
+   curDouble: Double;
+   curInt: Integer;
+   curBool: Boolean;
+   curSingle: Single;
 
 begin
   Result:= False;
 
   try
-     if (Type_ = devTypeDigitalCamera)
+     (*if (Type_ = devTypeDigitalCamera)
      then begin
           end
      else begin
-          end;
+          end;*)
 
-     Result:= True;
+      prevState:= Opened;
+
+      //Source must be loaded
+      OpenDS;
+
+      if Opened then
+      begin
+        curFlags:= GetCapability(SANE_NAME_SCAN_SOURCE, capType, curSource); //, listSources);  //2 Items in Test Scanner
+
+
+        //TESTS
+        curFlags:= GetCapability('hand-scanner', capType, curBool);  //Val =
+        curFlags:= GetCapability('three-pass', capType, curBool);  //Not Set
+        curFlags:= GetCapability(SANE_NAME_BIT_DEPTH, capType, curInt);
+        curFlags:= GetCapability('fixed-constraint-word-list', capType, curDouble);
+        curFlags:= GetCapability(SANE_NAME_SCAN_RESOLUTION, capType, curSingle);
+
+      end;
+
+      Result:= True;
+
+  finally
+    if not(prevState) then CloseDS;
+  end;
+end;
+
+function TXICA_SaneDevice.GetCapabilityIndex(const CapabilityName: String): SANE_Int;
+var
+  i: SANE_Int;
+  saneOption: PSANE_Option_Descriptor;
+
+begin
+  Result:= -1;
+  i:= 0;
+  saneOption:= sane_get_option_descriptor(devHandle, i);
+  While (Result < 0) and (saneOption <> nil)  do
+  begin
+    if (saneOption^.name = CapabilityName)
+    then Result:= i
+    else begin
+          inc(i);
+          saneOption:= sane_get_option_descriptor(devHandle, i);
+        end;
+  end;
+end;
+
+(*
+function TXICA_SaneDevice.GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
+                                        out ACapabilityValue): Boolean;
+begin
+  Result:= (prop_READ in GetCapability(ACapabilityId, CapabilityType, ACapabilityValue);
+end;
+*)
+
+function TXICA_SaneDevice.GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
+                                        out ACapabilityValue (*, ACapabilityDefaultValue*)): TXICA_PropertyFlags;
+var
+   CapabilityIndex, info: SANE_Int;
+   saneOption: PSANE_Option_Descriptor;
+   pData: Pointer = nil;
+
+begin
+  Result:= [];
+
+  try
+     CapabilityIndex:= GetCapabilityIndex(ACapabilityId);
+     if (CapabilityIndex >= 0) then
+     begin
+       saneOption:= sane_get_option_descriptor(devHandle, CapabilityIndex);
+       if (saneOption <> nil) then
+       begin
+         //Set PropertyFlags
+         SANEPropertyFlags(saneOption^.cap, Result);
+         SANEPropertyFlags(saneOption^.constraint_type, Result);
+
+         CapabilityType:= saneOption^._type;
+
+         //Allocate Memory and fill with 0
+         GetMem(pData, saneOption^.size);
+         FillChar(pData^, saneOption^.size, 0);
+
+         if sane_control_option(devHandle, CapabilityIndex, SANE_ACTION_GET_VALUE, pData, CapabilityIndex) = SANE_STATUS_GOOD then
+         Case CapabilityType of
+           SANE_TYPE_BOOL: Boolean(ACapabilityValue):= Boolean(PSANE_Bool(pData)^);
+           SANE_TYPE_INT:  Integer(ACapabilityValue):= PSANE_Int(pData)^;
+           SANE_TYPE_FIXED: Double(ACapabilityValue):= SANE_UNFIX(PSANE_Word(pData)^);
+           SANE_TYPE_STRING: String(ACapabilityValue):= PChar(pData);
+           //SANE_TYPE_BUTTON:  Non Sense, return always nil
+           SANE_TYPE_GROUP: String(ACapabilityValue):= saneOption^.title;
+         end;
+       end;
+     end;
+
+  finally
+    if (pData <> nil) then FreeMem(pData);
+  end;
+end;
+
+function TXICA_SaneDevice.GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
+                                        out ACapabilityValue (*, ACapabilityDefaultValue*); out ACapabilityListValues): TXICA_PropertyFlags;
+var
+   CapabilityIndex: SANE_Int;
+   saneOption: PSANE_Option_Descriptor;
+   pData: Pointer = nil;
+
+begin
+  Result:= [];
+
+  try
+     CapabilityIndex:= GetCapabilityIndex(ACapabilityId);
+     if (CapabilityIndex >= 0) then
+     begin
+       saneOption:= sane_get_option_descriptor(devHandle, CapabilityIndex);
+       if (saneOption <> nil) then
+       begin
+         //Set PropertyFlags
+         SANEPropertyFlags(saneOption^.cap, Result);
+         SANEPropertyFlags(saneOption^.constraint_type, Result);
+
+         CapabilityType:= saneOption^._type;
+
+         //Allocate Memory and fill with 0
+         GetMem(pData, saneOption^.size);
+         FillChar(pData^, saneOption^.size, 0);
+
+         if sane_control_option(devHandle, CapabilityIndex, SANE_ACTION_GET_VALUE, pData, CapabilityIndex) = SANE_STATUS_GOOD then
+         Case CapabilityType of
+           SANE_TYPE_BOOL: Boolean(ACapabilityValue):= Boolean(PSANE_Bool(pData)^);
+           SANE_TYPE_INT:  begin
+             Integer(ACapabilityValue):= PSANE_Int(pData)^;
+           end;
+           SANE_TYPE_FIXED: Double(ACapabilityValue):= SANE_UNFIX(PSANE_Word(pData)^);
+           SANE_TYPE_STRING: String(ACapabilityValue):= PChar(pData);
+           //SANE_TYPE_BUTTON:  Non Sense, return always nil
+           SANE_TYPE_GROUP: String(ACapabilityValue):= saneOption^.title;
+         end;
+       end;
+     end;
+
+  finally
+    if (pData <> nil) then FreeMem(pData);
+  end;
+end;
+
+function TXICA_SaneDevice.SetCapability(const ACapabilityId: String; const CapabilityType: SANE_Value_Type;
+                                        const ACapabilityValue): Boolean;
+var
+   CapabilityIndex: SANE_Int;
+
+begin
+  Result:= False;
+
+  try
+     CapabilityIndex:= GetCapabilityIndex(ACapabilityId);
+     if (CapabilityIndex >= 0) then
+     begin
+
+       Result:= True;
+     end;
 
   finally
   end;
@@ -629,6 +842,8 @@ var
     else begin
            curDevice:= TXICA_SaneDevice.Create(Self, i, pDevice^);
            Add(curDevice.ID, curDevice);
+
+           curDevice.rType:= devTypeScanner;
          end;
   end;
 

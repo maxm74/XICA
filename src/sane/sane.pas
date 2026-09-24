@@ -72,8 +72,12 @@ type
   SANE_Fixed = SANE_Word;
 
   PSANE_Byte = ^SANE_Byte;
+  PSANE_Word = ^SANE_Word;
+  PSANE_Bool = ^SANE_Bool;
   PSANE_Int = ^SANE_Int;
+  PSANE_Char = ^SANE_Char;
   PSANE_Handle = ^SANE_Handle;
+  PSANE_Fixed = ^SANE_Fixed;
 
   CharArray = array[0..0] of PChar;
   PCharArray = ^CharArray;

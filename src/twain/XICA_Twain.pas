@@ -966,6 +966,7 @@ end;
 
 function TXICA_TwainDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
+   prevState: Boolean;
    curName: String;
    curItem: TXICA_TwainItem;
    capSupport: TCapabilityOperations;
@@ -999,27 +1000,32 @@ begin
           end
      else begin
             try
+               prevState:= Opened;
+
                //Source must be loaded
                OpenDS;
 
-               //Device is a Scanner, Test if it has a Feeder
-               capSupport:= [];//GetCapabilitySupportedOp(CAP_FEEDERENABLED);
-
-               //HP always returns capSet even with a Feeder only scanner ??
-               capRet:= GetCapability(CAP_FEEDERENABLED, MSG_GET, FeedCapabilityType, oldFeedEnabled);
-               if (capRet = TWRC_SUCCESS) then
+               if Opened then
                begin
-                 capSupport:= capSupport+[capGet];
-                 newFeedEnabled:= not(oldFeedEnabled);
-                 if SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, newFeedEnabled) then
+                 //Device is a Scanner, Test if it has a Feeder
+                 capSupport:= [];//GetCapabilitySupportedOp(CAP_FEEDERENABLED);
+
+                 //HP always returns capSet even with a Feeder only scanner ??
+                 capRet:= GetCapability(CAP_FEEDERENABLED, MSG_GET, FeedCapabilityType, oldFeedEnabled);
+                 if (capRet = TWRC_SUCCESS) then
                  begin
-                   capSupport:= capSupport+[capSet];
-                   SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, oldFeedEnabled);
+                   capSupport:= capSupport+[capGet];
+                   newFeedEnabled:= not(oldFeedEnabled);
+                   if SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, newFeedEnabled) then
+                   begin
+                     capSupport:= capSupport+[capSet];
+                     SetCapability(CAP_FEEDERENABLED, TWTY_BOOL, oldFeedEnabled);
+                   end;
                  end;
                end;
 
             finally
-               CloseDS;
+               if not(prevState) then CloseDS;
             end;
 
             if (capSupport = [])
