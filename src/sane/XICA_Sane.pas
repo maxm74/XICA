@@ -488,6 +488,8 @@ end;
 
 function TXICA_SaneDevice._EnumerateItems(PreserveSelected: Boolean; ALastSelected: TXICA_Item): Boolean;
 var
+   iItem,
+   numItems: Integer;
    prevState: Boolean;
    curName: String;
    curItem: TXICA_SaneItem;
@@ -497,10 +499,14 @@ var
 
    curFlags: TXICA_PropertyFlags;
 
+   (*
    curDouble: Double;
    curInt: Integer;
    curBool: Boolean;
    curSingle: Single;
+   listInt: TArrayInteger;
+   listDouble: TArrayDouble;
+   *)
 
 begin
   Result:= False;
@@ -519,22 +525,46 @@ begin
 
       if Opened then
       begin
-        curFlags:= GetCapability(SANE_NAME_SCAN_SOURCE, capType, curSource); //, listSources);  //2 Items in Test Scanner
+        curFlags:= GetCapability(SANE_NAME_SCAN_SOURCE, capType, curSource, listSources);  //2 Items in Test Scanner
+        numItems:= Length(listSources);
+        if (numItems = 0)
+        then begin
+               //Add only Flatbed
+             end
+        else
+        for iItem:=0 to numItems-1 do
+        begin
+          curName:= listSources[iItem];
 
+          // Check if has Flatbed
+          if UpperCase(curName).Contains('FLATBED') then
+          begin
+          end;
 
+          // Check if has Feeder (ADF)
+          if UpperCase(curName).Contains('ADF') or UpperCase(curName).Contains('FEEDER') then
+          begin
+
+          end;
+        end;
+
+        (*
         //TESTS
         curFlags:= GetCapability('hand-scanner', capType, curBool);  //Val =
         curFlags:= GetCapability('three-pass', capType, curBool);  //Not Set
-        curFlags:= GetCapability(SANE_NAME_BIT_DEPTH, capType, curInt);
-        curFlags:= GetCapability('fixed-constraint-word-list', capType, curDouble);
-        curFlags:= GetCapability(SANE_NAME_SCAN_RESOLUTION, capType, curSingle);
-
+        curFlags:= GetCapability(SANE_NAME_BIT_DEPTH, capType, curInt, listInt);
+        curFlags:= GetCapability('fixed-constraint-word-list', capType, curDouble, listDouble);
+        curFlags:= GetCapability(SANE_NAME_SCAN_RESOLUTION, capType, curDouble, listDouble);
+        *)
       end;
 
       Result:= True;
 
   finally
     if not(prevState) then CloseDS;
+    listSources:= nil;
+    (*listInt:= nil;
+    listDouble:= nil;*)
   end;
 end;
 
@@ -613,6 +643,7 @@ end;
 function TXICA_SaneDevice.GetCapability(const ACapabilityId: String; out CapabilityType: SANE_Value_Type;
                                         out ACapabilityValue (*, ACapabilityDefaultValue*); out ACapabilityListValues): TXICA_PropertyFlags;
 var
+   i, count: Integer;
    CapabilityIndex: SANE_Int;
    saneOption: PSANE_Option_Descriptor;
    pData: Pointer = nil;
@@ -638,15 +669,70 @@ begin
          FillChar(pData^, saneOption^.size, 0);
 
          if sane_control_option(devHandle, CapabilityIndex, SANE_ACTION_GET_VALUE, pData, CapabilityIndex) = SANE_STATUS_GOOD then
-         Case CapabilityType of
-           SANE_TYPE_BOOL: Boolean(ACapabilityValue):= Boolean(PSANE_Bool(pData)^);
-           SANE_TYPE_INT:  begin
-             Integer(ACapabilityValue):= PSANE_Int(pData)^;
+         begin
+           //Set the Value based on the data type, there is no Default Value in SANE(?)
+           Case CapabilityType of
+             SANE_TYPE_BOOL: Boolean(ACapabilityValue):= Boolean(PSANE_Bool(pData)^);
+             SANE_TYPE_INT:  Integer(ACapabilityValue):= PSANE_Int(pData)^;
+             SANE_TYPE_FIXED: Double(ACapabilityValue):= SANE_UNFIX(PSANE_Word(pData)^);
+             SANE_TYPE_STRING: String(ACapabilityValue):= PChar(pData);
+             //SANE_TYPE_BUTTON:  Non Sense, return always nil
+             SANE_TYPE_GROUP: String(ACapabilityValue):= saneOption^.title;
            end;
-           SANE_TYPE_FIXED: Double(ACapabilityValue):= SANE_UNFIX(PSANE_Word(pData)^);
-           SANE_TYPE_STRING: String(ACapabilityValue):= PChar(pData);
-           //SANE_TYPE_BUTTON:  Non Sense, return always nil
-           SANE_TYPE_GROUP: String(ACapabilityValue):= saneOption^.title;
+         end;
+
+         //Regardless of whether SANE_ACTION_GET_VALUE fails or not, there might be an array or a range — retrieve the value anyway
+         if (saneOption^.constraint_type <> SANE_CONSTRAINT_NONE) then
+         begin
+           //Copy the items into the array, if present. I only take the constraint_type into account because
+           //maybe a data type inconsistency —f or example, SANE_TYPE_INT versus SANE_CONSTRAINT_STRING_LIST
+           Case saneOption^.constraint_type of
+             SANE_CONSTRAINT_RANGE: begin
+               //only SANE_TYPE_INT and SANE_TYPE_FIXED makes sense
+                if (CapabilityType = SANE_TYPE_FIXED)
+                then begin
+                       SetLength(TArrayDouble(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+                       Double(TArrayDouble(ACapabilityListValues)[prop_RANGE_MIN]):= SANE_UNFIX(saneOption^.range^.min);
+                       Double(TArrayDouble(ACapabilityListValues)[prop_RANGE_MAX]):= SANE_UNFIX(saneOption^.range^.max);
+                       Double(TArrayDouble(ACapabilityListValues)[prop_RANGE_STEP]):= SANE_UNFIX(saneOption^.range^.quant);
+                       //Double(TArrayDouble(ACapabilityListValues)[prop_RANGE_DEFAULT]):= ACapabilityDefaultValue;
+                     end
+                else begin
+                       SetLength(TArrayInteger(ACapabilityListValues), prop_RANGE_NUM_ELEMS);
+                       Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MIN]):= saneOption^.range^.min;
+                       Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_MAX]):= saneOption^.range^.max;
+                       Integer(TArrayInteger(ACapabilityListValues)[prop_RANGE_STEP]):= saneOption^.range^.quant;
+                       //Double(TArrayInteger(ACapabilityListValues)[prop_RANGE_DEFAULT]):= ACapabilityDefaultValue;
+                     end;
+             end;
+             SANE_CONSTRAINT_STRING_LIST: begin
+               //Iterate through the array until you find nil
+               i:= 0;
+               while (saneOption^.stringlist^[i] <> nil) do
+               begin
+                 //Add an Item
+                 SetLength(TStringArray(ACapabilityListValues), i+1);
+                 TStringArray(ACapabilityListValues)[i]:= String(saneOption^.stringlist^[i]);
+                 Inc(i);
+               end;
+             end;
+             SANE_CONSTRAINT_WORD_LIST: begin
+               //Get array count
+               count:= saneoption^.wordlist^[0];
+
+               //Add Items to Array
+               if (CapabilityType = SANE_TYPE_FIXED)
+               then begin
+                      SetLength(TArrayDouble(ACapabilityListValues), count);
+                      for i:=0 to count-1 do Double(TArrayDouble(ACapabilityListValues)[i]):= SANE_UNFIX(saneoption^.wordlist^[i+1]);
+                    end
+               else begin
+                      SetLength(TArrayInteger(ACapabilityListValues), count);
+                      for i:=0 to count-1 do Integer(TArrayInteger(ACapabilityListValues)[i]):= saneoption^.wordlist^[i+1];
+                    end;
+             end;
+            end;
+
          end;
        end;
      end;

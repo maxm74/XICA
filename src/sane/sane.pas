@@ -176,7 +176,7 @@ type
   end;
   PSANE_Range = ^SANE_Range;
 
-  SANE_WordList = array of SANE_Word;
+  SANE_WordList = array[0..0] of SANE_Word;
   PSANE_WordList = ^SANE_WordList;
 
   SANE_Option_Descriptor = record

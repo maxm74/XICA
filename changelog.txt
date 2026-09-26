@@ -1,5 +1,8 @@
 XICA CHANGE LOG
 ======================
+2026/09/26 Sane Manager: Corrected the incorrect declaration of SANE_WordList array;
+                         GetCapability with List/Range;
+
 2026/09/24 Sane Manager: First write of GetCapability;
            Twain Manager: _EnumerateItems closeDS only if not previous opened;
 
